@@ -70,7 +70,7 @@ async function deliverQuoteReply(tabId, text) {
     try {
       await chrome.scripting.executeScript({
         target: { tabId },
-        files: ['inboxsdk.js', 'elm-content.js', 'content_init.js']
+        files: ['config.js', 'inboxsdk.js', 'elm-content.js', 'content_init.js']
       });
 
       // Give the freshly-injected listener a moment to register.
