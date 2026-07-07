@@ -20,7 +20,7 @@ if (!window.gmailElmContentInitialised) {
     return activeComposeViews.find(view => !view.isMinimized()) || null;
   }
 
-  InboxSDK.load(2, 'sdk_replyquote_4d30d2dcd9').then(sdk => {
+  InboxSDK.load(2, INBOXSDK_APP_ID).then(sdk => {
     sdk.Compose.registerComposeViewHandler(composeView => {
       activeComposeViews.push(composeView);
       composeView.on('destroy', () => {

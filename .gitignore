@@ -1,0 +1,5 @@
+node_modules/
+elm-stuff/
+
+# Contains your real InboxSDK App ID — never commit this.
+config.js

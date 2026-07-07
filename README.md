@@ -63,6 +63,16 @@ npm run build:debug    # same but with the Elm debugger overlay enabled
 
 The compiled `.js` files are committed so the extension can be loaded without a build step, but re-run `npm run build` after editing any `.elm` file.
 
+### Configure your InboxSDK App ID
+
+`config.js` is gitignored and must exist locally for the extension to work.
+
+```bash
+cp config.example.js config.js
+# then open config.js and replace the placeholder with your real App ID
+# Register a free one at https://www.inboxsdk.com/
+```
+
 ### Load in Chrome
 
 1. Open `chrome://extensions`.
