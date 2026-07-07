@@ -1,58 +1,84 @@
-# Gmail Quote Selected
+# Gmail Quote Selected — Elm Rewrite
 
-Gmail Quote Selected is a lightweight Chrome extension that lets you reply in Gmail with the currently selected text inserted as a quoted block.
+  A reimplementation of the [gmail-quote-extension](https://github.com/kgashok/gmail-quote-extension) Chrome extension using the **Elm** language. The original extension is written in plain JavaScript; this repo explores rebuilding the same functionality with Elm's strong type system and pure functional architecture.
 
-## Features
+  ## What This Extension Does
 
-- Right-click selected text in Gmail and choose the context menu item to start a reply with the selection quoted.
-- Uses the Gmail compose UI to insert a styled blockquote.
+  Lets you reply in Gmail with currently selected text automatically inserted as a styled quoted block.
 
-## Installation (Developer / Local)
+  - **Right-click** any selected text → **Reply with Quote**
+  - **Keyboard shortcut** `Alt+Q` (Windows/Linux) or `MacCtrl+Q` (Mac)
+  - Inserts the selection as a styled `<blockquote>` into the reply compose box
+  - If a compose dialog is already open, the quote is added to it directly
+  - Cursor lands immediately below the quoted block, ready to type
 
-1. Clone or download this repository:
+  ## Architecture
 
-   git clone https://github.com/kgashok/git-quote-extension.git
+  Chrome extensions cannot run Elm as a service worker, so the architecture splits responsibility:
 
-2. Open Chrome and go to `chrome://extensions`.
-3. Enable **Developer mode** (top-right).
-4. Click **Load unpacked** and select this repository folder.
+  | File | Language | Role |
+  |---|---|---|
+  | `background.js` | JavaScript | Service worker — context menu, keyboard shortcut, Chrome messaging API |
+  | `content.js` | **Elm → compiled JS** | Content script — logic, InboxSDK interop via ports |
+  | `inboxsdk.js` | JavaScript (bundled) | InboxSDK — Gmail compose API |
+  | `manifest.json` | JSON | Extension manifest (Manifest V3) |
 
-## Usage
+  ### Why Elm for the Content Script?
 
-1. Open Gmail (https://mail.google.com).
-2. Select text in an email or message preview.
-3. Use one of the following methods to reply with the selected text quoted:
-   - **Right-click** the selection and choose **Reply with Quote** from the context menu.
-   - **Keyboard shortcut**: 
-     - Press **Alt+Q** (Windows/Linux) or 
-     - Press **MacCtrl+Q** (Mac)   
+  - **Ports** provide a clean, typed boundary between Elm logic and InboxSDK's JavaScript API
+  - The reply-button discovery walk, XSS escaping, and compose-view state tracking are all pure Elm functions — no runtime exceptions
+  - The Elm compiler catches mishandled states (e.g. no compose view open, minimized view) at compile time
 
-4. A reply compose box will open and the selected text will be inserted as a quoted block.
+  ### Interop Pattern
 
-## Regression Testing
+  ```
+  Chrome message (JS)
+      → Elm port (incoming)
+          → Elm logic: determine action
+      → Elm port (outgoing)
+          → JS interop: call InboxSDK
+              → composeView.insertHTMLIntoBodyAtCursor(html)
+  ```
 
-Verify the fix by reproducing the Gmail thread case:
-1. Open a Gmail conversation with multiple replies.
-2. Select text inside a deeper reply entry (e.g. the 3rd message in the thread).
-3. Press **Alt+Q** or use the extension context menu.
-4. Confirm that the quoted text opens in a reply compose box for that selected message, not the top-level thread message.
+  ## Getting Started
 
-## Development
+  ### Prerequisites
 
-- `background.js` registers the context menu and forwards the selected text to the page via a message.
-- `content.js` listens for the message, activates Gmail's reply flow, and inserts the quoted HTML.
-- Manifest v3 is used (`manifest.json`) with `scripting` and `contextMenus` permissions.
+  - [Elm](https://guide.elm-lang.org/install/elm.html) — `npm install -g elm`
+  - Node.js (for build tooling)
 
-## Files
+  ### Build
 
-- `manifest.json` — extension manifest
-- `background.js` — service worker / background logic
-- `content.js` — injected script that manipulates Gmail's compose box
+  ```bash
+  elm make src/Main.elm --output=content.js
+  ```
 
-## Contributing
+  ### Load in Chrome
 
-Contributions are welcome — open an issue or submit a PR.
+  1. Clone this repository:
+     ```
+     git clone https://github.com/kgashok/gmail-quote-extension-elm.git
+     ```
+  2. Build the Elm content script (see above).
+  3. Open Chrome → `chrome://extensions`.
+  4. Enable **Developer mode** (top-right toggle).
+  5. Click **Load unpacked** and select the cloned folder.
 
-## License
+  > **App ID:** `content.js` uses an InboxSDK App ID. Register a free one at [inboxsdk.com](https://www.inboxsdk.com/) and set it in the Elm → JS port initialisation.
 
-This repository does not include an explicit license. Add a `LICENSE` file if you wish to specify one.
+  ## Reference
+
+  - Original JavaScript implementation: [gmail-quote-extension](https://github.com/kgashok/gmail-quote-extension)
+  - Execution flow and design decisions: [`doc/flow.md`](doc/flow.md)
+  - Concept and API glossary: [`doc/glossary.md`](doc/glossary.md)
+  - InboxSDK documentation: [inboxsdk.com](https://www.inboxsdk.com/)
+  - Elm guide: [guide.elm-lang.org](https://guide.elm-lang.org/)
+
+  ## Contributing
+
+  Contributions welcome — open an issue or submit a PR.
+
+  ## License
+
+  This repository does not include an explicit license. Add a `LICENSE` file if you wish to specify one.
+  
