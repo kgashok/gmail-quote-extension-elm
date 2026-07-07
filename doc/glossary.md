@@ -1,8 +1,8 @@
-# Glossary: Gmail Quote Selected Extension
+# Glossary: Gmail Quote Selected Extension (Elm Edition)
 
-A reference of the concepts, APIs, and terms used to build this extension — from Chrome extension fundamentals to the InboxSDK integration and the specific bugs it fixes.
+A reference of the concepts, APIs, and terms used to build this extension — from Chrome extension fundamentals to the Elm architecture, InboxSDK integration, and the specific bugs it fixes.
 
-_It's meant to complement doc/flow.md (which explains execution order) by explaining what each term/API means rather than when it runs._
+_Complements `doc/flow.md` (which explains execution order) by explaining what each term or API means rather than when it runs._
 
 ---
 
@@ -12,19 +12,19 @@ _It's meant to complement doc/flow.md (which explains execution order) by explai
 The current Chrome extension platform version, declared via `"manifest_version": 3` in `manifest.json`. Replaces the older background-page model with service workers and tightens permission scoping. This extension is built entirely on MV3.
 
 **`manifest.json`**
-The extension's configuration file. Declares its name, version, permissions, background service worker, keyboard commands, and content scripts. It is the single source of truth for what the browser injects and where.
+The extension's configuration file. Declares its name, version, permissions, background service worker, keyboard commands, and content scripts. It is the single source of truth for what the browser injects and where. Content scripts are loaded in declaration order: `config.js` → `inboxsdk.js` → `elm-content.js` → `content_init.js`.
 
-**Service Worker (`background.js`)**
-The extension's background process. Unlike the old persistent background page, a service worker is event-driven and can be unloaded by Chrome when idle, then woken up again when an event (like a context menu click) fires. It has no direct access to the Gmail page's DOM — it can only communicate with content scripts via messaging or inject scripts on demand.
+**Service Worker (`background.js` + `elm-background.js`)**
+The extension's background process. Unlike the old persistent background page, a service worker is event-driven and can be unloaded by Chrome when idle, then woken up again when an event fires. `background.js` is the entry point declared in the manifest; it uses `importScripts('elm-background.js')` to load the compiled Elm logic, then wires Chrome API events to Elm ports.
 
-**Content Script (`content.js`, `inboxsdk.js`)**
-JavaScript that Chrome injects directly into a matching web page (here, `https://mail.google.com/*`). Content scripts can read and modify the page's DOM, but run in an **isolated world** — sharing the DOM with the page but not its JavaScript variables or functions.
+**Content Scripts (`config.js`, `inboxsdk.js`, `elm-content.js`, `content_init.js`)**
+JavaScript files that Chrome injects directly into matching web pages (`https://mail.google.com/*`). Content scripts can read and modify the page's DOM, but run in an **isolated world** — sharing the DOM with the page but not its JavaScript variables. The four files serve distinct roles: `config.js` sets the InboxSDK App ID global; `inboxsdk.js` is the bundled SDK; `elm-content.js` is the compiled Elm logic; `content_init.js` is the JS glue that wires them all together.
 
 **Isolated World**
-The sandboxed JavaScript execution context Chrome gives content scripts. This is why `content.js` and `inboxsdk.js` can manipulate Gmail's DOM freely, but cannot directly call any of Gmail's own internal JavaScript functions — everything has to go through DOM events, clicks, and standard browser APIs.
+The sandboxed JavaScript execution context Chrome gives content scripts. This is why the content scripts can manipulate Gmail's DOM freely but cannot directly call any of Gmail's own internal JavaScript functions — everything goes through DOM events, clicks, and standard browser APIs.
 
 **Permissions & `host_permissions`**
-Declared capabilities the extension requests: `contextMenus` (custom right-click menu items), `scripting` (inject code/files into tabs on demand), `activeTab` (temporary access to the currently focused tab). `host_permissions` scopes all of this to `https://mail.google.com/*` only.
+Declared capabilities the extension requests: `contextMenus` (custom right-click menu items), `scripting` (inject code/files into tabs on demand), `activeTab` (temporary access to the focused tab). `host_permissions` scopes all of this to `https://mail.google.com/*` only.
 
 ---
 
@@ -37,86 +37,118 @@ Registers "Reply to all with Quote" as a right-click option that appears only wh
 Declared in `manifest.json` under `commands.run-quote-reply`, bound to `Alt+Q` (Windows/Linux) or `MacCtrl+Q` (Mac). Fired via `chrome.commands.onCommand`.
 
 **`chrome.scripting.executeScript`**
-Used two different ways in this extension:
-1. To run an inline function (`() => window.getSelection().toString()`) in the active tab and retrieve its return value — this is how the keyboard shortcut path grabs the selected text, since the background service worker can't read the page's `window.getSelection()` itself.
-2. As a **recovery mechanism**: force-injecting `inboxsdk.js` and `content.js` into a tab that doesn't already have them running (see "Connection Recovery" below).
+Used two ways in this extension:
+1. To run an inline function (`() => window.getSelection().toString()`) in the active tab — how the keyboard shortcut path grabs selected text, since the background service worker cannot access the tab's `window.getSelection()` directly.
+2. As a **connection-recovery mechanism**: force-injecting `['config.js', 'inboxsdk.js', 'elm-content.js', 'content_init.js']` into a tab that doesn't already have the content scripts running.
 
 **`chrome.tabs.sendMessage` / `chrome.runtime.onMessage`**
-The message-passing bridge between the background service worker and the content script. The background sends `{ action: "triggerReply", text }`; the content script listens for it and acknowledges receipt via `sendResponse`.
+The message-passing bridge between the background service worker and the content script. The background sends `{ action: "triggerReply", text }`; `content_init.js` listens and acknowledges via `sendResponse`.
+
+---
+
+## Elm Architecture
+
+**`Platform.worker`**
+An Elm program type with no UI. It runs a `Model`/`update`/`subscriptions` loop entirely in the background, communicating with the outside world only through ports. Both `Background.elm` and `Content.elm` use `Platform.worker` — they have no HTML or DOM of their own.
+
+**Ports**
+Elm's typed message-passing boundary with JavaScript. There are two directions:
+- **Incoming ports** (`port foo : (a -> msg) -> Sub msg`) — JavaScript calls `app.ports.foo.send(value)` to deliver a value into the Elm `update` loop.
+- **Outgoing ports** (`port bar : a -> Cmd msg`) — Elm returns a command that causes JavaScript's `app.ports.bar.subscribe(callback)` to fire.
+
+Ports are the *only* way Elm interacts with Chrome APIs, InboxSDK, and the DOM. All side effects are pushed into the JS glue files this way.
+
+**`Background.elm`**
+The compiled-to-`elm-background.js` Elm module for the service-worker layer. Its `Model` is `{}` (no state). It is a pure router: every `ContextMenuClicked` or `CommandFired` message immediately produces a `sendQuoteReply` command. There is no mutable state to go wrong.
+
+**`Content.elm`**
+The compiled-to-`elm-content.js` Elm module for the content-script layer. Its `Model` is `{ pendingQuoteText : Maybe String }`. It owns the extension's only real state: whether a quote is waiting for a compose window to open.
+
+**`Maybe String` (pendingQuoteText)**
+Elm's `Maybe` type replaces the original JavaScript `let pendingQuoteText = null`. `Nothing` means "idle — no quote pending"; `Just text` means "a quote is waiting for a compose view to open". The Elm compiler requires all code that touches this value to explicitly handle both cases, making it impossible to accidentally use a null/undefined value or forget the pending branch.
+
+**`elm-background.js` / `elm-content.js`**
+The compiled outputs of `Background.elm` and `Content.elm` respectively, produced by `npm run build` (which passes `--optimize` to `elm make`). These files are committed to the repository so the extension can be loaded without a build step. The `--optimize` flag removes the development-mode runtime warning and applies dead-code elimination.
 
 ---
 
 ## InboxSDK
 
 **InboxSDK**
-A third-party JavaScript library (`inboxsdk.js`, bundled locally, ~2.2MB) purpose-built for writing Gmail browser extensions. It abstracts away Gmail's unstable internal DOM structure and gives extensions a stable, documented API for hooking into Gmail's UI — compose windows, threads, toolbars, etc.
+A third-party JavaScript library (`inboxsdk.js`, bundled locally) purpose-built for writing Gmail browser extensions. It abstracts away Gmail's unstable internal DOM structure and provides a stable API for hooking into compose windows, threads, toolbars, and more.
+
+**`INBOXSDK_APP_ID` / `config.js`**
+The InboxSDK App ID is a free identifier registered at [inboxsdk.com](https://www.inboxsdk.com/), used by the SDK for usage tracking. It is stored in `config.js` (gitignored) as a global `var INBOXSDK_APP_ID`. `config.js` is loaded first in the content-script order so that `content_init.js` can read the variable. A `config.example.js` template (committed) shows the expected shape without the real ID.
 
 **`InboxSDK.load(version, appId)`**
-The SDK's entry point. Called once per page load in `content.js`. Returns a Promise that resolves with an `sdk` object once the SDK has attached itself to Gmail's interface. `version` is the SDK's API version (`2`); `appId` is a free identifier registered at inboxsdk.com, used for the SDK's own usage tracking.
+The SDK's entry point, called once per page load in `content_init.js`. Returns a Promise that resolves with an `sdk` object once the SDK has attached itself to Gmail's interface.
 
 **`ComposeView`**
-InboxSDK's abstraction over a single Gmail compose or reply window. Instead of an extension having to locate and interpret raw `<div contenteditable>` elements, InboxSDK hands back a `ComposeView` object with a stable API.
+InboxSDK's abstraction over a single Gmail compose or reply window. Instead of locating and interpreting raw `<div contenteditable>` elements, the SDK provides a `ComposeView` object with a stable API.
 
 **`sdk.Compose.registerComposeViewHandler(handler)`**
-Registers a persistent callback that InboxSDK invokes once for every compose/reply view that exists or opens on the page, for as long as the page is loaded — including ones that were already open at registration time. This replaces the need for a `MutationObserver` watching the DOM for new compose boxes.
+Registers a persistent callback that fires once for every compose/reply view that exists or opens on the page, for as long as the page is loaded — including ones already open at registration time. This replaces the need for `MutationObserver` polling.
 
 **`composeView.insertHTMLIntoBodyAtCursor(html)`**
-The core InboxSDK method this extension relies on to insert the quoted text. It inserts an HTML string at the current cursor position inside the compose body, handling cursor placement and rich-text sanitization internally — replacing what used to be a fragile three-tier fallback chain (Clipboard API → `execCommand('insertHTML')` → raw `insertAdjacentHTML`).
+Inserts an HTML string at the current cursor position inside the compose body, handling cursor placement and rich-text sanitisation internally. Replaces what was previously a fragile three-tier fallback chain (Clipboard API → `execCommand('insertHTML')` → raw `insertAdjacentHTML`).
 
 **`composeView.isMinimized()`**
-Reports whether a given compose view is currently minimized (collapsed to a small bar at the bottom of Gmail). Used to skip minimized drafts when looking for "the" open compose view to insert into.
+Reports whether a compose view is currently minimised (collapsed to a bar at the bottom of Gmail). Used to skip minimised drafts when searching for the active compose view to insert into.
 
 **`composeView.on('destroy', callback)`**
-InboxSDK's event hook fired when a compose view is closed (sent, discarded, or otherwise removed). Used to prune closed views out of the extension's tracked list so it never tries to insert into a stale, gone compose view.
+Fired when a compose view is closed (sent, discarded, or otherwise removed). Used to prune closed views from `activeComposeViews` in `content_init.js`.
 
 ---
 
 ## Core Extension Logic
 
-**`pendingQuoteText`**
-A module-level variable in `content.js` that temporarily holds the selected quote text between the moment the user triggers the extension and the moment a *newly opened* compose view becomes available. Cleared immediately after use to prevent the same quote being inserted twice.
-
 **`activeComposeViews`**
-An array in `content.js` that tracks every compose/reply view currently open on the page. Populated inside `registerComposeViewHandler` and pruned on each view's `destroy` event. This is what lets the extension distinguish "insert into the reply the user already has open" from "open a brand-new reply and insert once it appears."
+An array in `content_init.js` that tracks every `ComposeView` currently open on the page. Populated inside `registerComposeViewHandler` and pruned on each view's `destroy` event. This array lives in JavaScript (not Elm) because `ComposeView` objects are opaque JS values that cannot be passed through ports. It is the source of truth for whether a compose window is open.
 
 **Reply Button Discovery**
-When no compose view is already open, the extension must first get Gmail to open one, by clicking a real "Reply" or "Reply All" button on the page (InboxSDK does not open replies on the extension's behalf). The discovery logic:
-- `findNearestReplyButton` — walks up the DOM from the text-selection anchor through ancestor containers, looking for the closest visible reply control.
-- `findReplyButton` — within a given container, filters to visible elements (`offsetWidth > 0 && offsetHeight > 0`) and prefers a "Reply All" match over a plain "Reply" match.
-- `isReplyButton` / `isReplyAllButton` / `getHay` — text-matching helpers that check `innerText`, `aria-label`, and `data-tooltip` for the words "reply" / "all" in English, French ("répondre" / "tous"), and Spanish ("responder" / "todos").
-- **Fail-safe:** if no button is found anywhere, the extension dispatches a synthetic `r` keydown event, which is Gmail's own native reply shortcut.
+When `Content.elm` emits `triggerReplyButton`, `content_init.js` must click a Gmail reply button to cause a compose view to open (InboxSDK does not open replies on the extension's behalf). The discovery logic in `content_init.js`:
+- `findNearestReplyButton` — walks up the DOM from the text-selection anchor through ancestor containers.
+- `findReplyButton` — within a container, filters to visible elements (`offsetWidth > 0 && offsetHeight > 0`) and prefers "Reply All" over plain "Reply".
+- `isReplyButton` / `isReplyAllButton` / `getHay` — text-matching helpers that check `innerText`, `aria-label`, and `data-tooltip` in English, French ("répondre" / "tous"), and Spanish ("responder" / "todos").
+- **Fail-safe:** if no button is found, a synthetic `r` keydown event is dispatched (Gmail's native reply shortcut).
 
 **Blockquote Construction & Escaping**
-The quoted text is wrapped in a `<blockquote>` with inline CSS (blue left border, italic text, light-blue background) before being handed to InboxSDK. `escapeHtml()` escapes `&`, `<`, `>`, and `"` in the user's selected text first, preventing any HTML/script the user selected from being executed when inserted into the compose body (XSS prevention).
+Done in `content_init.js` on the `insertQuote` port callback. The quote text from Elm is HTML-escaped (`&`, `<`, `>`, `"`) to prevent XSS, then wrapped in a `<blockquote>` with inline CSS (blue left border, italic text, light-blue background). No trailing `<br>` — `<blockquote>` is block-level, so the cursor lands on the next line naturally.
 
-**Connection Recovery (`sendQuoteReply`)**
-`chrome.tabs.sendMessage` fails with *"Could not establish connection. Receiving end does not exist"* when no content script listener exists in the target tab. This happens when:
-1. The Gmail tab was already open **before** the extension was installed or reloaded — manifest-declared content scripts are only auto-injected on new page loads, not into already-open tabs.
-2. A brief race condition right after a Gmail single-page-app navigation, before the content script's listener has finished registering.
+**Connection Recovery (`deliverQuoteReply`)**
+`chrome.tabs.sendMessage` fails with *"Could not establish connection"* when:
+1. The Gmail tab was open **before** the extension was installed or reloaded (manifest content scripts only auto-inject on new page loads).
+2. A brief race right after a Gmail SPA navigation, before `content_init.js`'s listener has registered.
 
-`sendQuoteReply` catches this specific error, force re-injects `inboxsdk.js` + `content.js` via `chrome.scripting.executeScript`, waits briefly, and retries the message once before giving up.
+`deliverQuoteReply` in `background.js` catches this specific error, re-injects `['config.js', 'inboxsdk.js', 'elm-content.js', 'content_init.js']` via `chrome.scripting.executeScript`, waits 100 ms, and retries the message once.
 
 ---
 
 ## Bugs Fixed During Development
 
 **Issue #1 — Insert into an already-open compose box**
-Originally, triggering the extension always tried to click a reply button, even if the user had already manually opened a reply draft. Fixed by checking `activeComposeViews` first via `getOpenComposeView()`; if a non-minimized compose view already exists, the quote is inserted directly into it and the reply-button-click path is skipped entirely.
+Originally, triggering the extension always tried to click a reply button, even if the user had manually opened a reply draft already. Fixed in `Content.elm`: `content_init.js` checks `activeComposeViews` first and sends `onTriggerReplyWithOpenView` if a non-minimised view exists, causing Elm to emit `insertQuote` immediately without touching the reply-button path.
 
 **Issue #2 — Extra blank line after the quote**
-The inserted HTML originally ended with `<blockquote>...</blockquote><br>`. Since `<blockquote>` is already a block-level element, the trailing `<br>` pushed the cursor down one extra blank line below the quote. Fixed by removing the trailing `<br>`, so the cursor now lands on the line immediately after the quoted block.
+The inserted HTML originally ended with `<blockquote>...</blockquote><br>`. Since `<blockquote>` is block-level, the trailing `<br>` pushed the cursor an extra blank line below the quote. Fixed by removing the `<br>` from the blockquote constructed in `content_init.js`'s `insertQuote` subscriber.
 
 ---
 
-## Superseded Techniques (Pre-InboxSDK)
+## Superseded Techniques
 
-These approaches were used in the original implementation and were replaced when the extension adopted InboxSDK. Documented here for historical context — see `doc/flow.md`'s Architecture Comparison table for the full before/after.
+These approaches were used in earlier iterations and are documented here for historical context.
 
 **`MutationObserver` polling**
-Watched `document.body` for DOM changes to detect when Gmail's compose box appeared, with a 5-second timeout safety net. Replaced by `registerComposeViewHandler`, which fires as an event rather than requiring polling.
+Previously watched `document.body` for DOM changes to detect when Gmail's compose box appeared, with a 5-second timeout safety net. Replaced by `registerComposeViewHandler`, which fires as a proper event.
 
 **Clipboard API fallback chain**
-The original HTML insertion strategy tried, in order: the modern async Clipboard API (`navigator.clipboard.write` + `ClipboardItem` + `document.execCommand('paste')`), then `document.execCommand('insertHTML')`, then raw `insertAdjacentHTML` as a last resort. Replaced entirely by `insertHTMLIntoBodyAtCursor`.
+The original HTML insertion strategy tried three methods in order: `navigator.clipboard.write` + `execCommand('paste')`, then `execCommand('insertHTML')`, then raw `insertAdjacentHTML`. Replaced by `insertHTMLIntoBodyAtCursor`.
 
 **Euclidean distance button scoring (`Math.hypot`)**
-The original reply-button-finding algorithm computed the pixel distance between the text selection's bounding rectangle and every visible reply button on the page, weighting "Reply All" candidates with a scoring bonus. Replaced by the simpler ancestor-walk approach (`findNearestReplyButton`), which is cheaper and just as reliable in practice.
+The original reply-button algorithm computed the pixel distance between the text selection's bounding rectangle and every visible reply button, weighting "Reply All" with a scoring bonus. Replaced by the simpler ancestor-walk approach, which is cheaper and equally reliable.
+
+**Hardcoded InboxSDK App ID**
+Previously the App ID was a string literal in the source file, which caused a GitHub secret-scanning alert. Moved to a gitignored `config.js` file read as `INBOXSDK_APP_ID`.
+
+**Single monolithic `content.js`**
+The original content script was one JavaScript file containing both logic and DOM/SDK calls. Replaced by two layers: `Content.elm` (pure logic, compiled to `elm-content.js`) and `content_init.js` (JS glue).
