@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Gmail Quote Selected",
-  "version": "2.0",
+  "version": "3.0",
   "description": "Right-click or use a shortcut to reply with quoted text in Gmail.",
   "permissions": ["contextMenus", "scripting", "activeTab"],
   "host_permissions": ["https://mail.google.com/*"],
@@ -20,7 +20,7 @@
   "content_scripts": [
     {
       "matches": ["https://mail.google.com/*"],
-      "js": ["inboxsdk.js", "content.js"]
+      "js": ["inboxsdk.js", "elm-content.js", "content_init.js"]
     }
   ]
 }
