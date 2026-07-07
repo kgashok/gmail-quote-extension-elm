@@ -1,8 +1,8 @@
-# Gmail Quote Selected — Elm Rewrite
+# Gmail Quote Selected
 
 A Chrome extension that lets you reply in Gmail with the currently selected text inserted as a styled blockquote.
 
-## What This Extension Does
+## Features
 
 - Right-click selected text in Gmail and choose **Reply to all with Quote** from the context menu.
 - Or press **Alt+Q** (Windows/Linux) / **MacCtrl+Q** (Mac) for a keyboard shortcut.
