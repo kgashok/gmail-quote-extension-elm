@@ -3,7 +3,7 @@
   "version": "3.0.0",
   "description": "Chrome extension — reply in Gmail with quoted text. Logic written in Elm.",
   "scripts": {
-    "build": "elm make src/Background.elm --output elm-background.js && elm make src/Content.elm --output elm-content.js",
+    "build": "elm make src/Background.elm --output elm-background.js --optimize && elm make src/Content.elm --output elm-content.js --optimize",
     "build:debug": "elm make src/Background.elm --output elm-background.js --debug && elm make src/Content.elm --output elm-content.js --debug"
   },
   "devDependencies": {
