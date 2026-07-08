@@ -2,6 +2,7 @@
 
 const DEFAULTS = {
   borderColor: '#007bff',
+  borderWidth: 3,
   bgColor:     '#f0f7ff',
   textStyle:   'italic',
   fontFamily:  'inherit',
@@ -13,9 +14,11 @@ const appIdInput    = document.getElementById('appId');
 const saveAppIdBtn  = document.getElementById('saveAppId');
 const appIdStatus   = document.getElementById('appIdStatus');
 
-const borderColorEl = document.getElementById('borderColor');
-const borderHexEl   = document.getElementById('borderHex');
-const borderSwatch  = document.getElementById('borderSwatch');
+const borderColorEl  = document.getElementById('borderColor');
+const borderHexEl    = document.getElementById('borderHex');
+const borderSwatch   = document.getElementById('borderSwatch');
+const borderWidthEl  = document.getElementById('borderWidth');
+const borderWidthVal = document.getElementById('borderWidthVal');
 const bgColorEl     = document.getElementById('bgColor');
 const bgHexEl       = document.getElementById('bgHex');
 const bgSwatch      = document.getElementById('bgSwatch');
@@ -65,6 +68,11 @@ borderColorEl.addEventListener('input', () => {
   updatePreview(currentStyle());
 });
 
+borderWidthEl.addEventListener('input', () => {
+  borderWidthVal.textContent = borderWidthEl.value + ' px';
+  updatePreview(currentStyle());
+});
+
 bgColorEl.addEventListener('input', () => {
   const hex = bgColorEl.value;
   bgSwatch.style.background = hex;
@@ -95,6 +103,7 @@ resetStyleBtn.addEventListener('click', () => {
 function currentStyle() {
   return {
     borderColor: borderColorEl.value,
+    borderWidth: Number(borderWidthEl.value),
     bgColor:     bgColorEl.value,
     textStyle:   textStyleEl.value,
     fontFamily:  fontFamilyEl.value,
@@ -102,20 +111,23 @@ function currentStyle() {
 }
 
 function applyToForm(s) {
-  borderColorEl.value       = s.borderColor;
+  borderColorEl.value           = s.borderColor;
   borderSwatch.style.background = s.borderColor;
-  borderHexEl.textContent   = s.borderColor;
+  borderHexEl.textContent       = s.borderColor;
 
-  bgColorEl.value           = s.bgColor;
-  bgSwatch.style.background = s.bgColor;
-  bgHexEl.textContent       = s.bgColor;
+  borderWidthEl.value           = s.borderWidth;
+  borderWidthVal.textContent    = s.borderWidth + ' px';
 
-  textStyleEl.value         = s.textStyle;
-  fontFamilyEl.value        = s.fontFamily;
+  bgColorEl.value               = s.bgColor;
+  bgSwatch.style.background     = s.bgColor;
+  bgHexEl.textContent           = s.bgColor;
+
+  textStyleEl.value             = s.textStyle;
+  fontFamilyEl.value            = s.fontFamily;
 }
 
 function updatePreview(s) {
-  preview.style.borderLeft  = `3px solid ${s.borderColor}`;
+  preview.style.borderLeft  = `${s.borderWidth}px solid ${s.borderColor}`;
   preview.style.background  = s.bgColor;
   preview.style.fontStyle   = s.textStyle.includes('italic') ? 'italic' : 'normal';
   preview.style.fontWeight  = s.textStyle.includes('bold')   ? 'bold'   : 'normal';

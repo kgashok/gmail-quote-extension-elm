@@ -28,7 +28,7 @@ if (!window.gmailElmContentInitialised) {
 
       // Merge saved style with hardcoded defaults so missing keys never crash.
       const style = Object.assign(
-        { borderColor: '#007bff', bgColor: '#f0f7ff', textStyle: 'italic', fontFamily: 'inherit' },
+        { borderColor: '#007bff', borderWidth: 3, bgColor: '#f0f7ff', textStyle: 'italic', fontFamily: 'inherit' },
         blockquoteStyle || {}
       );
 
@@ -183,7 +183,7 @@ if (!window.gmailElmContentInitialised) {
         const fontFamily = s.fontFamily === 'inherit' ? 'inherit' : s.fontFamily;
 
         return [
-          `border-left:3px solid ${s.borderColor}`,
+          `border-left:${s.borderWidth}px solid ${s.borderColor}`,
           'padding:6px 10px',
           'margin:0 0 6px 0',
           'color:#444',

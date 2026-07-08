@@ -121,6 +121,33 @@
       min-width: 70px;
     }
 
+    /* ── Range slider ───────────────────────────────────────────────────── */
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: #1a73e8;
+      cursor: pointer;
+      height: 4px;
+      margin-top: 6px;
+    }
+
+    .range-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .range-row input[type="range"] { flex: 1; }
+
+    .range-value {
+      font-size: 13px;
+      font-family: 'Courier New', Courier, monospace;
+      color: #3c4043;
+      min-width: 34px;
+      text-align: right;
+    }
+
     /* ── Two-column grid for style fields ───────────────────────────────── */
 
     .grid-2 {
@@ -274,6 +301,14 @@
           <input type="color" id="borderColor" value="#007bff">
         </label>
         <span class="color-hex" id="borderHex">#007bff</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="borderWidth">Border thickness</label>
+      <div class="range-row">
+        <input type="range" id="borderWidth" min="1" max="8" step="1" value="3">
+        <span class="range-value" id="borderWidthVal">3 px</span>
       </div>
     </div>
 
