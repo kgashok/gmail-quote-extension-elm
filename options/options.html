@@ -173,6 +173,7 @@
     }
 
     #preview {
+      border: 1px solid #e0e0e0;
       border-left: 3px solid #007bff;
       padding: 6px 10px;
       margin: 0;
@@ -313,9 +314,19 @@
     </div>
 
     <div class="field">
-      <label>Box colour</label>
+      <label>Box border colour</label>
       <div class="color-row">
-        <label class="color-swatch" id="bgSwatch" title="Pick box colour">
+        <label class="color-swatch" id="boxBorderSwatch" title="Pick box border colour">
+          <input type="color" id="boxBorderColor" value="#e0e0e0">
+        </label>
+        <span class="color-hex" id="boxBorderHex">#e0e0e0</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Box fill colour</label>
+      <div class="color-row">
+        <label class="color-swatch" id="bgSwatch" title="Pick box fill colour">
           <input type="color" id="bgColor" value="#f0f7ff">
         </label>
         <span class="color-hex" id="bgHex">#f0f7ff</span>
