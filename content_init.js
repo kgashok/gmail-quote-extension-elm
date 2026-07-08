@@ -102,26 +102,23 @@ if (!window.gmailElmContentInitialised) {
 
       app.ports.triggerReplyButton.subscribe(() => {
         console.log(TAG, 'triggerReplyButton fired — searching for reply button...');
-        const selection = window.getSelection();
-        let button = null;
 
-        if (selection && selection.rangeCount > 0) {
-          const anchor = selection.anchorNode;
-          const el = anchor?.nodeType === 1 ? anchor : anchor?.parentElement;
-          if (el) button = findNearestReplyButton(el);
+        const btn = findReplyButton(document.body);
+        if (btn) {
+          console.log(TAG, 'reply button found → clicking.', btn.getAttribute('aria-label') || btn.getAttribute('data-tooltip') || btn.innerText);
+          btn.click();
+          return;
         }
 
-        if (!button) button = findReplyButton(document.body);
-
-        if (button) {
-          console.log(TAG, 'reply button found → clicking.');
-          button.click();
-        } else {
-          console.warn(TAG, 'no reply button found — dispatching keyboard "r" as fallback.');
-          document.dispatchEvent(
-            new KeyboardEvent('keydown', { key: 'r', bubbles: true })
-          );
-        }
+        // Fallback: fire Gmail's keyboard shortcut for Reply All ('a').
+        // Must dispatch on window with full key metadata so Gmail's listener fires.
+        console.warn(TAG, 'no reply button found — firing keyboard shortcut "a" (Reply All) on window.');
+        ['keydown', 'keypress', 'keyup'].forEach(type =>
+          window.dispatchEvent(new KeyboardEvent(type, {
+            key: 'a', code: 'KeyA', keyCode: 65, which: 65,
+            bubbles: true, cancelable: true, composed: true
+          }))
+        );
       });
 
       // ── DOM helpers ───────────────────────────────────────────────────────
@@ -136,12 +133,13 @@ if (!window.gmailElmContentInitialised) {
         return null;
       }
 
+      // NOTE: no visibility filter here — Gmail hides reply buttons until the
+      // email is hovered, so offsetWidth/Height = 0 would exclude every button.
       function findReplyButton(container) {
         if (!container) return null;
         const candidates = Array.from(
           container.querySelectorAll('[role="button"], button, a, .ams')
-        ).filter(el => el.offsetWidth > 0 && el.offsetHeight > 0);
-
+        );
         return (
           candidates.find(isReplyAllButton) ||
           candidates.find(isReplyButton) ||
