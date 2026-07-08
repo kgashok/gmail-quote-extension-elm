@@ -68,12 +68,37 @@ async function deliverQuoteReply(tabId, text) {
     }
 
     try {
-      await chrome.scripting.executeScript({
+      // Check whether elm-content.js is already loaded in this tab.
+      // Re-injecting it when window.Elm.Content is already defined causes
+      // _Platform_mergeExportsProd to find a collision on 'init' and throw
+      // a _Debug_crash(6).  This happens when the extension is reloaded
+      // while a Gmail tab is open: the page heap persists but the content
+      // script connection is severed.
+      const [{ result: elmAlreadyLoaded }] = await chrome.scripting.executeScript({
         target: { tabId },
-        files: ['inboxsdk.js', 'elm-content.js', 'content_init.js']
+        func: () => !!(window.Elm && window.Elm.Content)
       });
 
-      // Give the freshly-injected listener a moment to register.
+      if (elmAlreadyLoaded) {
+        // Elm is already in the page — only re-run content_init.js so the
+        // message listener re-registers.  Clear the init guard first.
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          func: () => { delete window.gmailElmContentInitialised; }
+        });
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: ['content_init.js']
+        });
+      } else {
+        // Fresh tab — inject the full stack.
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: ['inboxsdk.js', 'elm-content.js', 'content_init.js']
+        });
+      }
+
+      // Give the freshly-registered listener a moment before retrying.
       await new Promise(resolve => setTimeout(resolve, 100));
 
       await chrome.tabs.sendMessage(tabId, { action: 'triggerReply', text });
