@@ -82,21 +82,21 @@ if (!window.gmailElmContentInitialised) {
       // don't fire onComposeViewOpened multiple times for the same element.
       const seenComposeBodies = new WeakSet();
 
-      function checkForNewComposeBody() {
+      function checkForNewComposeBody(source) {
         const body = findComposeBody();
         if (body && !seenComposeBodies.has(body)) {
           seenComposeBodies.add(body);
-          console.log(TAG, 'compose body detected by MutationObserver → notifying Elm.');
+          console.log(TAG, `compose body detected (source: ${source}) → notifying Elm.`);
           app.ports.onComposeViewOpened.send(null);
         }
       }
 
-      const composeObserver = new MutationObserver(checkForNewComposeBody);
+      const composeObserver = new MutationObserver(() => checkForNewComposeBody('MutationObserver'));
       composeObserver.observe(document.body, { childList: true, subtree: true });
       console.log(TAG, 'MutationObserver watching for compose bodies.');
 
       // Also check immediately in case a compose view is already open.
-      checkForNewComposeBody();
+      checkForNewComposeBody('init');
 
       // Try InboxSDK as a parallel signal — if it loads, its compose-view
       // handler calls the same checkForNewComposeBody() so the seenComposeBodies
@@ -108,7 +108,7 @@ if (!window.gmailElmContentInitialised) {
           console.log(TAG, 'InboxSDK loaded ✓ — registering compose view handler.');
           sdk.Compose.registerComposeViewHandler(() => {
             console.log(TAG, 'InboxSDK: compose view handler fired.');
-            checkForNewComposeBody();
+            checkForNewComposeBody('InboxSDK');
           });
         }).catch(err => {
           console.warn(TAG, 'InboxSDK.load failed — MutationObserver remains active:', err);
