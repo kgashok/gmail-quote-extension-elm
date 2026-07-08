@@ -127,8 +127,9 @@ function applyToForm(s) {
 }
 
 function updatePreview(s) {
-  preview.style.border       = `${s.borderWidth}px solid ${s.borderColor}`;
-  preview.style.borderRadius = '4px';
+  preview.style.borderLeft   = `${s.borderWidth}px solid ${s.borderColor}`;
+  preview.style.border       = '';
+  preview.style.borderRadius = '';
   preview.style.background  = s.bgColor;
   preview.style.fontStyle   = s.textStyle.includes('italic') ? 'italic' : 'normal';
   preview.style.fontWeight  = s.textStyle.includes('bold')   ? 'bold'   : 'normal';
