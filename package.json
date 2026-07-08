@@ -7,9 +7,7 @@
     "build:debug": "elm make src/Background.elm --output elm-background.js --debug && elm make src/Content.elm --output elm-content.js --debug"
   },
   "devDependencies": {
+    "@inboxsdk/core": "^2.2.16",
     "elm": "^0.19.1-5"
-  },
-  "dependencies": {
-    "@inboxsdk/core": "^2.2.16"
   }
 }

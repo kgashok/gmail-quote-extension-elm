@@ -371,7 +371,7 @@ function isNotNil(value) {
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- SDK_VERSION is injected by webpack
 ///@ts-ignore
-const BUILD_VERSION = "2.2.14-1781136415132-9adac3fd50875551";
+const BUILD_VERSION = "2.2.16-1783455994598-383ba7105eb7983b";
 if (false) {}
 
 /***/ }),
@@ -2665,7 +2665,7 @@ options.insert = htmlElement => {
               htmlElement.setAttribute('data-inboxsdk-version',
               // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- this is injected by webpack
               ///@ts-ignore
-              "2.2.14-1781136415132-9adac3fd50875551");
+              "2.2.16-1783455994598-383ba7105eb7983b");
               document.head.append(htmlElement);
             };
 options.domAPI = (styleDomAPI_default());
@@ -3686,6 +3686,9 @@ var constant_default = /*#__PURE__*/__webpack_require__.n(constant);
 // EXTERNAL MODULE: ./node_modules/lodash/find.js
 var find = __webpack_require__(4455);
 var find_default = /*#__PURE__*/__webpack_require__.n(find);
+// EXTERNAL MODULE: ./node_modules/lodash/noop.js
+var noop = __webpack_require__(1700);
+var noop_default = /*#__PURE__*/__webpack_require__.n(noop);
 // EXTERNAL MODULE: ./node_modules/asap/browser-asap.js
 var browser_asap = __webpack_require__(4622);
 var browser_asap_default = /*#__PURE__*/__webpack_require__.n(browser_asap);
@@ -5330,6 +5333,7 @@ function setFromEmail(driver, gmailComposeView, email) {
 
 
 
+
 let hasReportedMissingBody = false;
 class GmailComposeView {
   #element;
@@ -6297,8 +6301,14 @@ class GmailComposeView {
     }
   }
   setTitleBarColor(color) {
-    const buttonParent = (0,querySelectorOrFail/* default */.A)(this.#element, '.nH.Hy.aXJ table.cf.Ht td.Hm');
-    const elementsToModify = [(0,querySelectorOrFail/* default */.A)(this.#element, '.nH.Hy.aXJ .pi > .l.o'), (0,querySelectorOrFail/* default */.A)(this.#element, '.nH.Hy.aXJ .l.m'), (0,querySelectorOrFail/* default */.A)(this.#element, '.nH.Hy.aXJ .l.m > .l.n')];
+    // Gmail A/B-renames the `Ht` token; fall back to a structural selector.
+    const buttonParent = this.#element.querySelector('.nH.Hy.aXJ table.cf.Ht td.Hm') || this.#element.querySelector('.nH.Hy.aXJ table.cf td.Hm');
+    if (!buttonParent) {
+      // cosmetic; log and skip rather than throw
+      this.#driver.getLogger().error(new Error('setTitleBarColor: could not find compose title bar'));
+      return (noop_default());
+    }
+    const elementsToModify = [this.#element.querySelector('.nH.Hy.aXJ .pi > .l.o'), this.#element.querySelector('.nH.Hy.aXJ .l.m'), this.#element.querySelector('.nH.Hy.aXJ .l.m > .l.n')].filter(el => el != null);
     buttonParent.classList.add('inboxsdk__compose_customTitleBarColor');
     elementsToModify.forEach(el => {
       el.style.backgroundColor = color;
@@ -6314,13 +6324,22 @@ class GmailComposeView {
     if (this.isInlineReplyForm()) {
       throw new Error('setTitleBarText() is not supported on inline compose views');
     }
-    const titleBarTable = (0,querySelectorOrFail/* default */.A)(this.#element, '.nH.Hy.aXJ table.cf.Ht');
+
+    // Gmail A/B-renames the `Ht` token; fall back to a structural selector.
+    const titleBarTable = this.#element.querySelector('.nH.Hy.aXJ table.cf.Ht') || this.#element.querySelector('.nH.Hy.aXJ table.cf');
+    if (!titleBarTable) {
+      // cosmetic; log and skip rather than throw
+      this.#driver.getLogger().error(new Error('setTitleBarText: could not find compose title bar'));
+      return (noop_default());
+    }
     if (titleBarTable.classList.contains('inboxsdk__compose_hasCustomTitleBarText')) {
       throw new Error('Custom title bar text is already registered for this compose view');
     }
-    const titleTextParent = (0,querySelectorOrFail/* default */.A)(titleBarTable, 'div.Hp').parentElement;
+    const titleTextParent = titleBarTable.querySelector('div.Hp')?.parentElement;
     if (!(titleTextParent instanceof HTMLElement)) {
-      throw new Error('Could not locate title bar text parent');
+      // cosmetic; log and skip rather than throw
+      this.#driver.getLogger().error(new Error('setTitleBarText: could not locate title bar text parent'));
+      return (noop_default());
     }
     titleBarTable.classList.add('inboxsdk__compose_hasCustomTitleBarText');
     titleTextParent.classList.add('inboxsdk__compose_nativeTitleBarText');
@@ -10313,7 +10332,7 @@ options.insert = htmlElement => {
               htmlElement.setAttribute('data-inboxsdk-version',
               // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- this is injected by webpack
               ///@ts-ignore
-              "2.2.14-1781136415132-9adac3fd50875551");
+              "2.2.16-1783455994598-383ba7105eb7983b");
               document.head.append(htmlElement);
             };
 options.domAPI = (styleDomAPI_default());
@@ -15075,7 +15094,7 @@ options.insert = htmlElement => {
               htmlElement.setAttribute('data-inboxsdk-version',
               // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- this is injected by webpack
               ///@ts-ignore
-              "2.2.14-1781136415132-9adac3fd50875551");
+              "2.2.16-1783455994598-383ba7105eb7983b");
               document.head.append(htmlElement);
             };
 options.domAPI = (styleDomAPI_default());
@@ -19841,7 +19860,7 @@ mole_view_module_options.insert = htmlElement => {
               htmlElement.setAttribute('data-inboxsdk-version',
               // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- this is injected by webpack
               ///@ts-ignore
-              "2.2.14-1781136415132-9adac3fd50875551");
+              "2.2.16-1783455994598-383ba7105eb7983b");
               document.head.append(htmlElement);
             };
 mole_view_module_options.domAPI = (styleDomAPI_default());
@@ -24108,6 +24127,7 @@ function parseListPeopleByKnownIdResponse(data) {
 
 
 
+
 /**
  * @internal
  */
@@ -24664,7 +24684,14 @@ class GmailDriver {
     if (condition()) {
       return kefir_esm.constant(undefined);
     }
-    return (0,stream_wait_for/* default */.A)(condition).map(() => undefined);
+    return (0,stream_wait_for/* default */.A)(condition).map(() => undefined).mapErrors(err => {
+      const el = document.querySelector('div.aUx');
+      this.#logger.error(err, {
+        reason: 'waitForGlobalSidebarReady timed out',
+        aUxHtml: el ? (0,censorHTMLtree/* default */.A)(el) : null
+      });
+      return err;
+    });
   }
   getGlobalSidebar() {
     let appSidebarView = this.#appSidebarView;
