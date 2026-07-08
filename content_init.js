@@ -24,7 +24,7 @@ if (!window.gmailElmContentInitialised) {
     ['inboxSdkAppId', 'enabled', 'blockquoteStyle'],
     ({ inboxSdkAppId, enabled, blockquoteStyle }) => {
       console.log(TAG, 'storage read →', {
-        inboxSdkAppId: inboxSdkAppId ? '✓ set' : '✗ missing',
+        inboxSdkAppId: inboxSdkAppId ?? '✗ missing',
         enabled
       });
 
@@ -33,8 +33,7 @@ if (!window.gmailElmContentInitialised) {
         return;
       }
 
-      // App ID is not needed at runtime any more (no InboxSDK), but we still
-      // require it to be set so unconfigured installs open the Options page.
+      // App ID is required by InboxSDK.load() and also guards unconfigured installs.
       if (!inboxSdkAppId) {
         console.warn(TAG, 'No App ID configured — opening Options page.');
         chrome.runtime.sendMessage({ action: 'openOptions' });
@@ -105,7 +104,7 @@ if (!window.gmailElmContentInitialised) {
       // WeakSet deduplicates automatically.  If InboxSDK hangs the
       // MutationObserver above keeps everything working regardless.
       if (typeof InboxSDK !== 'undefined') {
-        console.log(TAG, 'InboxSDK available — attempting load...');
+        console.log(TAG, 'InboxSDK available — attempting load with appId:', inboxSdkAppId, '| type:', typeof inboxSdkAppId);
         InboxSDK.load(2, inboxSdkAppId).then(sdk => {
           console.log(TAG, 'InboxSDK loaded ✓ — registering compose view handler.');
           sdk.Compose.registerComposeViewHandler(() => {
