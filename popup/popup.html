@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Gmail Quote Selected</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      color: #202124;
+      background: #fff;
+      width: 272px;
+      padding: 16px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    /* ── Toggle switch ─────────────────────────────────────────────────── */
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 2px 0;
+    }
+
+    .toggle-label {
+      font-size: 13px;
+      color: #3c4043;
+    }
+
+    .switch {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    .switch input { opacity: 0; width: 0; height: 0; }
+
+    .track {
+      position: absolute;
+      inset: 0;
+      border-radius: 20px;
+      background: #dadce0;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .track::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,.3);
+      transition: transform 0.2s;
+    }
+
+    .switch input:checked + .track { background: #1a73e8; }
+    .switch input:checked + .track::after { transform: translateX(16px); }
+
+    /* ── Divider ───────────────────────────────────────────────────────── */
+
+    .divider {
+      border: none;
+      border-top: 1px solid #e8eaed;
+      margin: 14px 0;
+    }
+
+    /* ── Shortcut section ──────────────────────────────────────────────── */
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: #80868b;
+      margin-bottom: 10px;
+    }
+
+    .shortcut-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .shortcut-desc {
+      font-size: 13px;
+      color: #3c4043;
+    }
+
+    .shortcut-keys {
+      display: flex;
+      gap: 4px;
+    }
+
+    kbd {
+      display: inline-block;
+      padding: 2px 7px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
+      font-size: 12px;
+      color: #3c4043;
+      background: #f1f3f4;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      line-height: 1.6;
+    }
+
+    /* ── Footer ────────────────────────────────────────────────────────── */
+
+    .footer {
+      margin-top: 14px;
+      text-align: right;
+    }
+
+    .footer a {
+      font-size: 12px;
+      color: #1a73e8;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .footer a:hover { text-decoration: underline; }
+
+    .disabled-hint {
+      font-size: 12px;
+      color: #80868b;
+      margin-top: 8px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="title">Gmail Quote Selected</span>
+  </div>
+
+  <div class="toggle-row">
+    <span class="toggle-label">Enable extension</span>
+    <label class="switch">
+      <input type="checkbox" id="enabledToggle" checked>
+      <span class="track"></span>
+    </label>
+  </div>
+
+  <p class="disabled-hint" id="disabledHint">
+    Extension is paused — triggers will be ignored on Gmail.
+  </p>
+
+  <hr class="divider">
+
+  <p class="section-label">Keyboard shortcut</p>
+
+  <div class="shortcut-row" id="shortcutWin">
+    <span class="shortcut-desc">Windows / Linux</span>
+    <span class="shortcut-keys"><kbd>Alt</kbd><kbd>Q</kbd></span>
+  </div>
+  <div class="shortcut-row" id="shortcutMac">
+    <span class="shortcut-desc">Mac</span>
+    <span class="shortcut-keys"><kbd>⌃</kbd><kbd>Q</kbd></span>
+  </div>
+
+  <hr class="divider">
+
+  <div class="footer">
+    <a id="openOptions">Style &amp; settings →</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

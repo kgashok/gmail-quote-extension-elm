@@ -17,6 +17,10 @@
       "description": "Trigger Reply All with Quoted Text"
     }
   },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Gmail Quote Selected"
+  },
   "options_ui": {
     "page": "options/options.html",
     "open_in_tab": false

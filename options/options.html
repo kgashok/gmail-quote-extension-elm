@@ -12,7 +12,7 @@
       color: #202124;
       background: #f8f9fa;
       padding: 32px;
-      max-width: 520px;
+      max-width: 560px;
     }
 
     h1 {
@@ -24,6 +24,15 @@
     .subtitle {
       color: #5f6368;
       margin-bottom: 28px;
+    }
+
+    h2 {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #80868b;
+      margin-bottom: 16px;
     }
 
     .field {
@@ -49,26 +58,109 @@
 
     input[type="text"]:focus {
       border-color: #1a73e8;
-      box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+      box-shadow: 0 0 0 2px rgba(26,115,232,0.2);
     }
 
-    .hint {
-      margin-top: 6px;
+    select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235f6368' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+      transition: border-color 0.15s;
+    }
+
+    select:focus {
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 2px rgba(26,115,232,0.2);
+    }
+
+    /* ── Colour picker row ──────────────────────────────────────────────── */
+
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .color-swatch {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      border: 1px solid #dadce0;
+      cursor: pointer;
+      flex-shrink: 0;
+      overflow: hidden;
+      padding: 0;
+      position: relative;
+    }
+
+    .color-swatch input[type="color"] {
+      position: absolute;
+      inset: -4px;
+      width: calc(100% + 8px);
+      height: calc(100% + 8px);
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      opacity: 0;
+    }
+
+    .color-hex {
+      font-size: 13px;
+      font-family: 'Courier New', Courier, monospace;
+      color: #3c4043;
+      min-width: 70px;
+    }
+
+    /* ── Two-column grid for style fields ───────────────────────────────── */
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    /* ── Preview ────────────────────────────────────────────────────────── */
+
+    .preview-wrap {
+      background: #fff;
+      border: 1px solid #e8eaed;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 4px;
+    }
+
+    .preview-label {
       font-size: 12px;
-      color: #5f6368;
+      color: #80868b;
+      margin-bottom: 8px;
     }
 
-    .hint a {
-      color: #1a73e8;
-      text-decoration: none;
+    #preview {
+      border-left: 3px solid #007bff;
+      padding: 6px 10px;
+      margin: 0;
+      color: #444;
+      font-style: italic;
+      background-color: #f0f7ff;
     }
 
-    .hint a:hover { text-decoration: underline; }
+    /* ── Buttons ────────────────────────────────────────────────────────── */
 
     .actions {
       display: flex;
       align-items: center;
       gap: 12px;
+      flex-wrap: wrap;
     }
 
     button {
@@ -86,14 +178,34 @@
     button:hover { background: #1557b0; }
     button:active { background: #0d47a1; }
 
-    #status {
-      font-size: 13px;
-      min-height: 18px;
-      transition: opacity 0.3s;
+    .btn-ghost {
+      background: transparent;
+      color: #5f6368;
+      border: 1px solid #dadce0;
+      padding: 7px 16px;
     }
 
-    #status.ok  { color: #188038; }
-    #status.err { color: #c5221f; }
+    .btn-ghost:hover { background: #f1f3f4; }
+    .btn-ghost:active { background: #e8eaed; }
+
+    .status {
+      font-size: 13px;
+      min-height: 18px;
+    }
+
+    .status.ok  { color: #188038; }
+    .status.err { color: #c5221f; }
+
+    /* ── Utility ────────────────────────────────────────────────────────── */
+
+    .hint {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #5f6368;
+    }
+
+    .hint a { color: #1a73e8; text-decoration: none; }
+    .hint a:hover { text-decoration: underline; }
 
     .divider {
       border: none;
@@ -123,8 +235,12 @@
   <h1>Gmail Quote Selected</h1>
   <p class="subtitle">Extension settings</p>
 
+  <!-- ── Section 1: App ID ────────────────────────────────────────────── -->
+
+  <h2>InboxSDK</h2>
+
   <div class="field">
-    <label for="appId">InboxSDK App ID</label>
+    <label for="appId">App ID</label>
     <input
       type="text"
       id="appId"
@@ -140,8 +256,72 @@
   </div>
 
   <div class="actions">
-    <button id="save">Save</button>
-    <span id="status"></span>
+    <button id="saveAppId">Save</button>
+    <span class="status" id="appIdStatus"></span>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ── Section 2: Blockquote style ──────────────────────────────────── -->
+
+  <h2>Quote style</h2>
+
+  <div class="grid-2">
+    <div class="field">
+      <label>Border colour</label>
+      <div class="color-row">
+        <label class="color-swatch" id="borderSwatch" title="Pick border colour">
+          <input type="color" id="borderColor" value="#007bff">
+        </label>
+        <span class="color-hex" id="borderHex">#007bff</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Background colour</label>
+      <div class="color-row">
+        <label class="color-swatch" id="bgSwatch" title="Pick background colour">
+          <input type="color" id="bgColor" value="#f0f7ff">
+        </label>
+        <span class="color-hex" id="bgHex">#f0f7ff</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="textStyle">Text style</label>
+      <select id="textStyle">
+        <option value="normal">Normal</option>
+        <option value="italic" selected>Italic</option>
+        <option value="bold">Bold</option>
+        <option value="bold-italic">Bold Italic</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="fontFamily">Font</label>
+      <select id="fontFamily">
+        <option value="inherit" selected>Default (inherit)</option>
+        <option value="serif">Serif</option>
+        <option value="sans-serif">Sans-serif</option>
+        <option value="monospace">Monospace</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Preview</label>
+    <div class="preview-wrap">
+      <p class="preview-label">Your quoted text will look like this:</p>
+      <blockquote id="preview">
+        The quick brown fox jumps over the lazy dog.
+      </blockquote>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="saveStyle">Save style</button>
+    <button class="btn-ghost" id="resetStyle">Reset to defaults</button>
+    <span class="status" id="styleStatus"></span>
   </div>
 
   <hr class="divider">
@@ -149,7 +329,7 @@
   <div class="info-box">
     After saving, reload any open Gmail tabs and click
     <strong>Reload</strong> on the extension card in
-    <code>chrome://extensions</code> for the change to take effect.
+    <code>chrome://extensions</code> for changes to take effect.
   </div>
 
   <script src="options.js"></script>
