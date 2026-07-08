@@ -165,6 +165,8 @@ if (!window.gmailElmContentInitialised) {
         try {
           const ok = document.execCommand('insertHTML', false, quoteHTML);
           if (ok) {
+            // execCommand leaves the cursor inside the blockquote — move it after.
+            moveCursorAfterBlockquote(body);
             console.log(TAG, 'quote inserted via execCommand ✓');
             return;
           }
@@ -174,8 +176,38 @@ if (!window.gmailElmContentInitialised) {
         console.warn(TAG, 'execCommand failed — falling back to DOM insertion.');
         const tmp = document.createElement('div');
         tmp.innerHTML = quoteHTML;
-        body.insertBefore(tmp.firstChild, body.firstChild);
+        const bq = tmp.firstChild;
+        body.insertBefore(bq, body.firstChild);
+        moveCursorAfterElement(bq);
         console.log(TAG, 'quote inserted via DOM prepend ✓');
+      }
+
+      // Walks up from the current selection anchor to the nearest <blockquote>,
+      // then places the cursor immediately after it.
+      function moveCursorAfterBlockquote(body) {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+
+        let node = sel.getRangeAt(0).commonAncestorContainer;
+        while (node && node !== body) {
+          if (node.nodeName === 'BLOCKQUOTE') {
+            moveCursorAfterElement(node);
+            return;
+          }
+          node = node.parentNode;
+        }
+      }
+
+      function moveCursorAfterElement(el) {
+        const sel = window.getSelection();
+        if (!sel) return;
+        try {
+          const range = document.createRange();
+          range.setStartAfter(el);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } catch (_) {}
       }
 
       // NOTE: no visibility filter — Gmail hides reply buttons until hover,
