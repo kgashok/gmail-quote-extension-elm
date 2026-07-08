@@ -24,6 +24,27 @@ console.log(TAG, 'content_init.js FILE LOADED (guard:', window.gmailElmContentIn
 if (!window.gmailElmContentInitialised) {
   window.gmailElmContentInitialised = true;
 
+  // ── Early message listener ─────────────────────────────────────────────────
+  // Registered synchronously so background.js can reach us immediately after
+  // re-injection, before the async Promise.all (storage + InboxSDK) resolves.
+  // Any triggerReply that arrives before Elm is ready is held in pendingRequest
+  // and drained once initialisation completes.
+  let pendingRequest = null;
+  let handleTriggerReply = null; // filled in once Elm is ready
+
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action !== 'triggerReply') return;
+    sendResponse({ status: 'received' });
+    if (handleTriggerReply) {
+      handleTriggerReply(request.text);
+    } else {
+      console.log(TAG, 'triggerReply received before init complete — buffering.');
+      pendingRequest = request.text;
+    }
+    return true;
+  });
+  console.log(TAG, 'early message listener registered.');
+
   // ── 1. Read storage (async) ────────────────────────────────────────────────
   const storagePromise = new Promise(resolve => {
     chrome.storage.sync.get(
@@ -145,24 +166,29 @@ if (!window.gmailElmContentInitialised) {
     }
 
     // ── Chrome → Elm ───────────────────────────────────────────────────────
+    // The message listener was registered synchronously above (before this
+    // Promise.all resolved) so background.js could reach us immediately after
+    // re-injection.  Now that Elm is ready, wire up the real handler and drain
+    // any request that arrived during initialisation.
 
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      if (request.action === 'triggerReply') {
-        const composeBody = findComposeBody();
-        console.log(TAG, 'received triggerReply. text length:', request.text?.length,
-          '| compose body open:', !!composeBody);
-        sendResponse({ status: 'received' });
-
-        if (composeBody) {
-          console.log(TAG, 'compose already open → TriggerReplyWithOpenView.');
-          app.ports.onTriggerReplyWithOpenView.send(request.text);
-        } else {
-          console.log(TAG, 'no compose open → TriggerReplyNoView (will click reply button).');
-          app.ports.onTriggerReplyNoView.send(request.text);
-        }
+    handleTriggerReply = text => {
+      const composeBody = findComposeBody();
+      console.log(TAG, 'received triggerReply. text length:', text?.length,
+        '| compose body open:', !!composeBody);
+      if (composeBody) {
+        console.log(TAG, 'compose already open → TriggerReplyWithOpenView.');
+        app.ports.onTriggerReplyWithOpenView.send(text);
+      } else {
+        console.log(TAG, 'no compose open → TriggerReplyNoView (will click reply button).');
+        app.ports.onTriggerReplyNoView.send(text);
       }
-      return true;
-    });
+    };
+
+    if (pendingRequest !== null) {
+      console.log(TAG, 'draining buffered triggerReply.');
+      handleTriggerReply(pendingRequest);
+      pendingRequest = null;
+    }
 
     // ── Elm → DOM ──────────────────────────────────────────────────────────
 
