@@ -7,69 +7,76 @@
 // The InboxSDK App ID, enabled state, and blockquote style are all read from
 // chrome.storage.sync (configured via the Options page and popup).
 
+const TAG = '[GmailQuoteSelected]';
+
 // Guard against duplicate initialisation on script re-injection.
 if (!window.gmailElmContentInitialised) {
   window.gmailElmContentInitialised = true;
+  console.log(TAG, 'content_init.js starting — reading storage...');
 
   chrome.storage.sync.get(
     ['inboxSdkAppId', 'enabled', 'blockquoteStyle'],
     ({ inboxSdkAppId, enabled, blockquoteStyle }) => {
+      console.log(TAG, 'storage read →', { inboxSdkAppId: inboxSdkAppId ? '✓ set' : '✗ missing', enabled });
 
-      // Respect the popup toggle — default is enabled.
-      if (enabled === false) return;
+      if (enabled === false) {
+        console.log(TAG, 'extension disabled via popup toggle — stopping.');
+        return;
+      }
 
       if (!inboxSdkAppId) {
-        console.warn(
-          '[Gmail Quote Selected] No InboxSDK App ID configured. ' +
-          'Opening the options page — paste your App ID there and click Save.'
-        );
+        console.warn(TAG, 'No InboxSDK App ID — opening Options page. Set your ID there, then reload Gmail.');
         chrome.runtime.sendMessage({ action: 'openOptions' });
         return;
       }
 
-      // Merge saved style with hardcoded defaults so missing keys never crash.
       const style = Object.assign(
         { borderColor: '#007bff', borderWidth: 3, boxBorderColor: '#e0e0e0', bgColor: '#f0f7ff', textStyle: 'italic', fontFamily: 'inherit' },
         blockquoteStyle || {}
       );
 
+      console.log(TAG, 'initialising Elm.Content...');
       const app = Elm.Content.init();
+      console.log(TAG, 'Elm.Content ready. Ports:', Object.keys(app.ports));
 
       // ── InboxSDK compose-view tracking ───────────────────────────────────
 
-      // We keep a JS-side list of live compose views because the composeView
-      // objects are JS values that Elm cannot hold.
       const activeComposeViews = [];
 
       function getOpenComposeView() {
         return activeComposeViews.find(view => !view.isMinimized()) || null;
       }
 
+      console.log(TAG, `loading InboxSDK v2 with App ID "${inboxSdkAppId}"...`);
       InboxSDK.load(2, inboxSdkAppId).then(sdk => {
+        console.log(TAG, 'InboxSDK loaded ✓ — registering compose view handler.');
         sdk.Compose.registerComposeViewHandler(composeView => {
+          console.log(TAG, 'compose view opened → tracking it.');
           activeComposeViews.push(composeView);
           composeView.on('destroy', () => {
             const idx = activeComposeViews.indexOf(composeView);
             if (idx !== -1) activeComposeViews.splice(idx, 1);
+            console.log(TAG, 'compose view destroyed. Active views:', activeComposeViews.length);
           });
-
-          // Tell Elm a compose view just opened so it can flush any pending quote.
           app.ports.onComposeViewOpened.send(null);
         });
+      }).catch(err => {
+        console.error(TAG, 'InboxSDK.load failed:', err);
       });
 
       // ── Chrome → Elm ──────────────────────────────────────────────────────
 
       chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.action === 'triggerReply') {
+          console.log(TAG, 'received triggerReply. text length:', request.text?.length, '| open compose views:', activeComposeViews.length);
           sendResponse({ status: 'received' });
 
-          // Pre-check in JS whether a compose view is already open so Elm
-          // receives the right event and can decide immediately.
           const openView = getOpenComposeView();
           if (openView) {
+            console.log(TAG, 'compose view is open → sending TriggerReplyWithOpenView to Elm.');
             app.ports.onTriggerReplyWithOpenView.send(request.text);
           } else {
+            console.log(TAG, 'no compose view open → sending TriggerReplyNoView to Elm (will click reply button).');
             app.ports.onTriggerReplyNoView.send(request.text);
           }
         }
@@ -78,21 +85,23 @@ if (!window.gmailElmContentInitialised) {
 
       // ── Elm → DOM / InboxSDK ──────────────────────────────────────────────
 
-      // Elm asks us to insert quoted text into the currently open compose view.
       app.ports.insertQuote.subscribe(text => {
         const view = getOpenComposeView();
-        if (!view) return;
+        console.log(TAG, 'insertQuote fired. text length:', text?.length, '| view found:', !!view);
+        if (!view) {
+          console.warn(TAG, 'insertQuote: no open compose view to insert into.');
+          return;
+        }
 
         const css = buildQuoteCSS(style);
         const quoteHTML =
           `<blockquote style="${css}">${escapeHtml(text)}</blockquote>`;
-
         view.insertHTMLIntoBodyAtCursor(quoteHTML);
+        console.log(TAG, 'quote inserted ✓');
       });
 
-      // Elm asks us to click the nearest Gmail reply button so a compose view
-      // opens (which will trigger onComposeViewOpened above).
       app.ports.triggerReplyButton.subscribe(() => {
+        console.log(TAG, 'triggerReplyButton fired — searching for reply button...');
         const selection = window.getSelection();
         let button = null;
 
@@ -105,9 +114,10 @@ if (!window.gmailElmContentInitialised) {
         if (!button) button = findReplyButton(document.body);
 
         if (button) {
+          console.log(TAG, 'reply button found → clicking.');
           button.click();
         } else {
-          // Last resort: fire Gmail's native reply shortcut.
+          console.warn(TAG, 'no reply button found — dispatching keyboard "r" as fallback.');
           document.dispatchEvent(
             new KeyboardEvent('keydown', { key: 'r', bubbles: true })
           );
@@ -116,7 +126,6 @@ if (!window.gmailElmContentInitialised) {
 
       // ── DOM helpers ───────────────────────────────────────────────────────
 
-      // Walks up the DOM from the selection anchor to find the closest reply button.
       function findNearestReplyButton(start) {
         let el = start;
         while (el && el !== document.body) {
@@ -127,7 +136,6 @@ if (!window.gmailElmContentInitialised) {
         return null;
       }
 
-      // Finds the best reply button in a container, preferring "Reply All".
       function findReplyButton(container) {
         if (!container) return null;
         const candidates = Array.from(
@@ -168,7 +176,6 @@ if (!window.gmailElmContentInitialised) {
           .toLowerCase();
       }
 
-      // Prevents XSS by escaping user-selected text before embedding in HTML.
       function escapeHtml(text) {
         return text
           .replace(/&/g, '&amp;')
@@ -177,7 +184,6 @@ if (!window.gmailElmContentInitialised) {
           .replace(/"/g, '&quot;');
       }
 
-      // Builds the inline CSS string for the blockquote from user preferences.
       function buildQuoteCSS(s) {
         const fontStyle  = s.textStyle.includes('italic') ? 'italic' : 'normal';
         const fontWeight = s.textStyle.includes('bold')   ? 'bold'   : 'normal';
@@ -197,4 +203,6 @@ if (!window.gmailElmContentInitialised) {
       }
     }
   );
+} else {
+  console.log(TAG, 'content_init.js skipped — already initialised on this page.');
 }
