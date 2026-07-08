@@ -16,6 +16,22 @@ chrome.runtime.onInstalled.addListener(() => {
     title: 'Reply to all with Quote',
     contexts: ['selection']
   });
+
+  // On first install, open the options page so the user can enter their
+  // InboxSDK App ID.  Without it content_init.js cannot initialise.
+  chrome.storage.sync.get(['inboxSdkAppId'], ({ inboxSdkAppId }) => {
+    if (!inboxSdkAppId) {
+      chrome.runtime.openOptionsPage();
+    }
+  });
+});
+
+// Content scripts cannot call openOptionsPage() directly — they ask the
+// background to do it on their behalf.
+chrome.runtime.onMessage.addListener((request) => {
+  if (request.action === 'openOptions') {
+    chrome.runtime.openOptionsPage();
+  }
 });
 
 // ── Chrome → Elm ─────────────────────────────────────────────────────────────
@@ -27,19 +43,22 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 });
 
 chrome.commands.onCommand.addListener(async (command, tab) => {
-  if (command === 'run-quote-reply' && tab.url.includes('mail.google.com')) {
-    try {
-      const [result] = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => window.getSelection().toString()
-      });
-      const text = result?.result;
-      if (text?.trim()) {
-        app.ports.onCommandFired.send({ tabId: tab.id, text });
-      }
-    } catch (err) {
-      console.error('Shortcut failed to grab selection text:', err);
+  if (command !== 'run-quote-reply') return;
+  if (!tab?.url?.includes('mail.google.com')) return;
+
+  try {
+    // Run in ALL frames: Gmail renders email content inside child iframes,
+    // so window.getSelection() in the main frame always returns empty string.
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id, allFrames: true },
+      func: () => window.getSelection()?.toString() ?? ''
+    });
+    const text = (results || []).map(r => r?.result ?? '').find(t => t && t.trim());
+    if (text) {
+      app.ports.onCommandFired.send({ tabId: tab.id, text });
     }
+  } catch (err) {
+    console.error('Shortcut failed to grab selection text:', err);
   }
 });
 

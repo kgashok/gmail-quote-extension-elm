@@ -21,8 +21,9 @@ if (!window.gmailElmContentInitialised) {
       if (!inboxSdkAppId) {
         console.warn(
           '[Gmail Quote Selected] No InboxSDK App ID configured. ' +
-          'Click the extension icon → "Style & settings" to set one.'
+          'Opening the options page — paste your App ID there and click Save.'
         );
+        chrome.runtime.sendMessage({ action: 'openOptions' });
         return;
       }
 
