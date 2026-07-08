@@ -1,5 +1,7 @@
 node_modules/
 elm-stuff/
 
-# Contains your real InboxSDK App ID — never commit this.
+# config.js is no longer part of the project — the App ID is stored via
+# the Options page in chrome.storage.sync.  This entry is kept to avoid
+# accidentally committing any leftover local copy.
 config.js

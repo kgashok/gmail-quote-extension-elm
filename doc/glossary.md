@@ -12,13 +12,13 @@ _Complements `doc/flow.md` (which explains execution order) by explaining what e
 The current Chrome extension platform version, declared via `"manifest_version": 3` in `manifest.json`. Replaces the older background-page model with service workers and tightens permission scoping. This extension is built entirely on MV3.
 
 **`manifest.json`**
-The extension's configuration file. Declares its name, version, permissions, background service worker, keyboard commands, and content scripts. It is the single source of truth for what the browser injects and where. Content scripts are loaded in declaration order: `config.js` → `inboxsdk.js` → `elm-content.js` → `content_init.js`.
+The extension's configuration file. Declares its name, version, permissions, background service worker, keyboard commands, content scripts, and the options page. Content scripts are loaded in declaration order: `inboxsdk.js` → `elm-content.js` → `content_init.js`.
 
 **Service Worker (`background.js` + `elm-background.js`)**
 The extension's background process. Unlike the old persistent background page, a service worker is event-driven and can be unloaded by Chrome when idle, then woken up again when an event fires. `background.js` is the entry point declared in the manifest; it uses `importScripts('elm-background.js')` to load the compiled Elm logic, then wires Chrome API events to Elm ports.
 
-**Content Scripts (`config.js`, `inboxsdk.js`, `elm-content.js`, `content_init.js`)**
-JavaScript files that Chrome injects directly into matching web pages (`https://mail.google.com/*`). Content scripts can read and modify the page's DOM, but run in an **isolated world** — sharing the DOM with the page but not its JavaScript variables. The four files serve distinct roles: `config.js` sets the InboxSDK App ID global; `inboxsdk.js` is the bundled SDK; `elm-content.js` is the compiled Elm logic; `content_init.js` is the JS glue that wires them all together.
+**Content Scripts (`inboxsdk.js`, `elm-content.js`, `content_init.js`)**
+JavaScript files that Chrome injects directly into matching web pages (`https://mail.google.com/*`). Content scripts can read and modify the page's DOM, but run in an **isolated world** — sharing the DOM with the page but not its JavaScript variables. The three files serve distinct roles: `inboxsdk.js` is the bundled SDK; `elm-content.js` is the compiled Elm logic; `content_init.js` is the JS glue that reads the App ID from `chrome.storage.sync`, initialises the Elm worker, and wires everything together.
 
 **Isolated World**
 The sandboxed JavaScript execution context Chrome gives content scripts. This is why the content scripts can manipulate Gmail's DOM freely but cannot directly call any of Gmail's own internal JavaScript functions — everything goes through DOM events, clicks, and standard browser APIs.
@@ -39,7 +39,7 @@ Declared in `manifest.json` under `commands.run-quote-reply`, bound to `Alt+Q` (
 **`chrome.scripting.executeScript`**
 Used two ways in this extension:
 1. To run an inline function (`() => window.getSelection().toString()`) in the active tab — how the keyboard shortcut path grabs selected text, since the background service worker cannot access the tab's `window.getSelection()` directly.
-2. As a **connection-recovery mechanism**: force-injecting `['config.js', 'inboxsdk.js', 'elm-content.js', 'content_init.js']` into a tab that doesn't already have the content scripts running.
+2. As a **connection-recovery mechanism**: force-injecting `['inboxsdk.js', 'elm-content.js', 'content_init.js']` into a tab that doesn't already have the content scripts running. `content_init.js` reads the App ID from `chrome.storage.sync` as part of its own startup.
 
 **`chrome.tabs.sendMessage` / `chrome.runtime.onMessage`**
 The message-passing bridge between the background service worker and the content script. The background sends `{ action: "triggerReply", text }`; `content_init.js` listens and acknowledges via `sendResponse`.
@@ -77,8 +77,8 @@ The compiled outputs of `Background.elm` and `Content.elm` respectively, produce
 **InboxSDK**
 A third-party JavaScript library (`inboxsdk.js`, bundled locally) purpose-built for writing Gmail browser extensions. It abstracts away Gmail's unstable internal DOM structure and provides a stable API for hooking into compose windows, threads, toolbars, and more.
 
-**`INBOXSDK_APP_ID` / `config.js`**
-The InboxSDK App ID is a free identifier registered at [inboxsdk.com](https://www.inboxsdk.com/), used by the SDK for usage tracking. It is stored in `config.js` (gitignored) as a global `var INBOXSDK_APP_ID`. `config.js` is loaded first in the content-script order so that `content_init.js` can read the variable. A `config.example.js` template (committed) shows the expected shape without the real ID.
+**InboxSDK App ID / Options page**
+The InboxSDK App ID is a free identifier registered at [inboxsdk.com](https://www.inboxsdk.com/), used by the SDK for usage tracking. It is stored in `chrome.storage.sync` under the key `inboxSdkAppId` and entered by the user via the extension's Options page (`options/options.html` + `options/options.js`). `content_init.js` reads it asynchronously on startup; if no ID is stored, initialisation aborts with a console warning prompting the user to open Options.
 
 **`InboxSDK.load(version, appId)`**
 The SDK's entry point, called once per page load in `content_init.js`. Returns a Promise that resolves with an `sdk` object once the SDK has attached itself to Gmail's interface.
@@ -120,7 +120,7 @@ Done in `content_init.js` on the `insertQuote` port callback. The quote text fro
 1. The Gmail tab was open **before** the extension was installed or reloaded (manifest content scripts only auto-inject on new page loads).
 2. A brief race right after a Gmail SPA navigation, before `content_init.js`'s listener has registered.
 
-`deliverQuoteReply` in `background.js` catches this specific error, re-injects `['config.js', 'inboxsdk.js', 'elm-content.js', 'content_init.js']` via `chrome.scripting.executeScript`, waits 100 ms, and retries the message once.
+`deliverQuoteReply` in `background.js` catches this specific error, re-injects `['inboxsdk.js', 'elm-content.js', 'content_init.js']` via `chrome.scripting.executeScript`, waits 100 ms, and retries the message once. `content_init.js` reads the App ID from `chrome.storage.sync` as part of its own startup.
 
 ---
 
@@ -147,8 +147,8 @@ The original HTML insertion strategy tried three methods in order: `navigator.cl
 **Euclidean distance button scoring (`Math.hypot`)**
 The original reply-button algorithm computed the pixel distance between the text selection's bounding rectangle and every visible reply button, weighting "Reply All" with a scoring bonus. Replaced by the simpler ancestor-walk approach, which is cheaper and equally reliable.
 
-**Hardcoded InboxSDK App ID**
-Previously the App ID was a string literal in the source file, which caused a GitHub secret-scanning alert. Moved to a gitignored `config.js` file read as `INBOXSDK_APP_ID`.
+**Hardcoded / file-based InboxSDK App ID**
+The App ID started as a string literal in the source file (triggered a GitHub secret-scanning alert), then moved to a gitignored `config.js` global. Both approaches are now superseded — the App ID is entered once via the Options page and stored in `chrome.storage.sync`.
 
 **Single monolithic `content.js`**
 The original content script was one JavaScript file containing both logic and DOM/SDK calls. Replaced by two layers: `Content.elm` (pure logic, compiled to `elm-content.js`) and `content_init.js` (JS glue).

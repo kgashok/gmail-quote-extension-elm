@@ -1,3 +1,6 @@
-// Your InboxSDK App ID — register a free one at https://www.inboxsdk.com/
-// Copy this file to config.js and replace the placeholder with your real App ID.
-var INBOXSDK_APP_ID = 'sdk_yourappname_0000000000';
+// NOTE: config.js / config.example.js are no longer used.
+//
+// The InboxSDK App ID is now stored via the extension's Options page
+// (right-click the extension icon → Options) and saved to chrome.storage.sync.
+//
+// This file is kept only for historical reference and can be deleted.

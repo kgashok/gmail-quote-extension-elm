@@ -38,7 +38,9 @@ src/
 
 background.js         Service-worker glue — Chrome APIs ↔ Background.elm ports
 content_init.js       Content-script glue — InboxSDK + Chrome messages ↔ Content.elm ports
-config.js             Your InboxSDK App ID (gitignored — see setup below)
+options/
+  options.html        Options page UI (enter InboxSDK App ID)
+  options.js          Reads/writes App ID via chrome.storage.sync
 
 elm-background.js     Compiled output of Background.elm  (committed, generated)
 elm-content.js        Compiled output of Content.elm     (committed, generated)
@@ -88,13 +90,13 @@ npm install
 
 ### 2. Configure your InboxSDK App ID
 
-`config.js` is gitignored and holds your real App ID. Copy the example and fill it in:
+The App ID is stored via the extension's built-in Options page — no file editing required.
 
-```bash
-cp config.example.js config.js
-```
+1. Load the extension in Chrome first (see step 4 below).
+2. Right-click the extension icon in the toolbar → **Options**.
+3. Paste your App ID and click **Save**.
 
-Then open `config.js` and replace the placeholder with your App ID. Register a free one at [inboxsdk.com](https://www.inboxsdk.com/).
+Register a free App ID at [inboxsdk.com](https://www.inboxsdk.com/).
 
 ### 3. Build
 

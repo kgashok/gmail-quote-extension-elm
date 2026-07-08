@@ -3,7 +3,7 @@
   "name": "Gmail Quote Selected",
   "version": "3.0",
   "description": "Right-click or use a shortcut to reply with quoted text in Gmail.",
-  "permissions": ["contextMenus", "scripting", "activeTab"],
+  "permissions": ["contextMenus", "scripting", "activeTab", "storage"],
   "host_permissions": ["https://mail.google.com/*"],
   "background": {
     "service_worker": "background.js"
@@ -17,10 +17,14 @@
       "description": "Trigger Reply All with Quoted Text"
     }
   },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": false
+  },
   "content_scripts": [
     {
       "matches": ["https://mail.google.com/*"],
-      "js": ["config.js", "inboxsdk.js", "elm-content.js", "content_init.js"]
+      "js": ["inboxsdk.js", "elm-content.js", "content_init.js"]
     }
   ]
 }

@@ -18,10 +18,11 @@ This document outlines the step-by-step execution flow of the extension from ini
 
 ### Content script: `content_init.js` + `Content.elm`
 
-- `config.js`, `inboxsdk.js`, `elm-content.js`, and `content_init.js` are declared in `manifest.json` and injected into every `mail.google.com` page (in that order).
+- `inboxsdk.js`, `elm-content.js`, and `content_init.js` are declared in `manifest.json` and injected into every `mail.google.com` page (in that order).
 - `content_init.js` calls `Elm.Content.init()`, starting the content-script Elm worker.
 - It wires up all port subscriptions and callbacks (see §4 and §5).
-- It calls `InboxSDK.load(2, INBOXSDK_APP_ID)` (the App ID is read from `config.js`), which returns a Promise.
+- It reads the InboxSDK App ID from `chrome.storage.sync` (set via the Options page). If no App ID is found, initialisation aborts with a console warning and nothing further happens.
+- Once the App ID is confirmed, it calls `InboxSDK.load(2, inboxSdkAppId)`, which returns a Promise.
 - Once resolved, it calls `sdk.Compose.registerComposeViewHandler(handler)` — a persistent listener that fires whenever Gmail opens any compose or reply window for the lifetime of the page.
 
 ---
@@ -132,7 +133,7 @@ When `insertQuote` fires, `content_init.js`:
 1. The Gmail tab was open **before** the extension was installed or reloaded — manifest content scripts only auto-inject on new page loads.
 2. A brief race right after a Gmail SPA navigation, before `content_init.js`'s listener has registered.
 
-`deliverQuoteReply` in `background.js` catches this specific error, re-injects `['config.js', 'inboxsdk.js', 'elm-content.js', 'content_init.js']` via `chrome.scripting.executeScript`, waits 100 ms, and retries the message once.
+`deliverQuoteReply` in `background.js` catches this specific error, re-injects `['inboxsdk.js', 'elm-content.js', 'content_init.js']` via `chrome.scripting.executeScript`, waits 100 ms, and retries the message once. `content_init.js` will read the App ID from `chrome.storage.sync` as part of its own initialisation.
 
 ---
 
@@ -174,4 +175,4 @@ background.js  ──port──►  Background.elm  ──port──►  backgro
 | Insert HTML | Clipboard API → `execCommand` → DOM fallback | `insertHTMLIntoBodyAtCursor` via `insertQuote` port |
 | Cursor placement | Manual `document.createRange()` | Block-level `<blockquote>`, no trailing `<br>` |
 | Reply button scoring | Euclidean distance (`Math.hypot`) + type weighting | Ancestor-walk, prefer-reply-all-first linear scan |
-| App ID location | Hardcoded string in source | `config.js` (gitignored), read as `INBOXSDK_APP_ID` global |
+| App ID location | Hardcoded string in source | `chrome.storage.sync`, set via the Options page |
