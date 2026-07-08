@@ -183,7 +183,8 @@ if (!window.gmailElmContentInitialised) {
         const fontFamily = s.fontFamily === 'inherit' ? 'inherit' : s.fontFamily;
 
         return [
-          `border-left:${s.borderWidth}px solid ${s.borderColor}`,
+          `border:${s.borderWidth}px solid ${s.borderColor}`,
+          'border-radius:4px',
           'padding:6px 10px',
           'margin:0 0 6px 0',
           'color:#444',
