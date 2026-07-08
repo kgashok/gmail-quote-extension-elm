@@ -53,29 +53,12 @@ if (!window.gmailElmContentInitialised) {
     );
   });
 
-  // ── 2. Load InboxSDK synchronously at top level ────────────────────────────
-  // Must happen NOW (not inside a callback) so InboxSDK can hook Gmail's boot.
-  let inboxSdkPromise = Promise.resolve(null);
-  if (typeof InboxSDK !== 'undefined') {
-    // We don't have the App ID yet — read it from storage first, then load.
-    // But we must at least START the storage read before anything async blocks.
-    // The actual InboxSDK.load() call happens once we have the App ID, but we
-    // chain it immediately off the storage promise so it runs as early as possible.
-    console.log(TAG, 'InboxSDK global present — will load once App ID is confirmed.');
-    inboxSdkPromise = storagePromise.then(({ inboxSdkAppId }) => {
-      if (!inboxSdkAppId) return null;
-      console.log(TAG, 'InboxSDK.load() called with appId:', inboxSdkAppId);
-      return InboxSDK.load(2, inboxSdkAppId).catch(err => {
-        console.warn(TAG, 'InboxSDK.load failed:', err);
-        return null;
-      });
-    });
-  } else {
-    console.log(TAG, 'InboxSDK global not present — MutationObserver only.');
-  }
-
-  // ── 3. Wait for both, then wire everything up ──────────────────────────────
-  Promise.all([storagePromise, inboxSdkPromise]).then(([storage, sdk]) => {
+  // ── 2 & 3. Wire up as soon as storage resolves — don't wait for InboxSDK ───
+  // InboxSDK is optional.  It is started in parallel and wires its own compose
+  // handler once (if) it resolves, but it must never block Elm initialisation
+  // or the message listener, otherwise a hanging InboxSDK.load() delays the
+  // whole extension indefinitely.
+  storagePromise.then(storage => {
     const { inboxSdkAppId, enabled, blockquoteStyle } = storage;
 
     console.log(TAG, 'storage read →', {
@@ -92,12 +75,6 @@ if (!window.gmailElmContentInitialised) {
       console.warn(TAG, 'No App ID configured — opening Options page.');
       chrome.runtime.sendMessage({ action: 'openOptions' });
       return;
-    }
-
-    if (sdk) {
-      console.log(TAG, 'InboxSDK loaded ✓');
-    } else {
-      console.warn(TAG, 'InboxSDK not available — MutationObserver fallback active.');
     }
 
     const style = Object.assign(
@@ -156,20 +133,27 @@ if (!window.gmailElmContentInitialised) {
     // Check immediately in case a compose view is already open.
     checkForNewComposeBody('init');
 
-    // Wire up InboxSDK compose handler if SDK loaded successfully.
-    if (sdk) {
-      sdk.Compose.registerComposeViewHandler(() => {
-        console.log(TAG, 'InboxSDK: compose view handler fired.');
-        checkForNewComposeBody('InboxSDK');
+    // ── InboxSDK — fire and forget, never blocks init ──────────────────────
+    // Chained off storagePromise (which already resolved to get here), so
+    // InboxSDK.load() starts as early as possible.  If it hangs or rejects,
+    // the MutationObserver above keeps everything working regardless.
+    if (typeof InboxSDK !== 'undefined') {
+      console.log(TAG, 'InboxSDK.load() called with appId:', inboxSdkAppId);
+      InboxSDK.load(2, inboxSdkAppId).then(sdk => {
+        console.log(TAG, 'InboxSDK loaded ✓ — registering compose view handler.');
+        sdk.Compose.registerComposeViewHandler(() => {
+          console.log(TAG, 'InboxSDK: compose view handler fired.');
+          checkForNewComposeBody('InboxSDK');
+        });
+      }).catch(err => {
+        console.warn(TAG, 'InboxSDK.load failed — MutationObserver remains active:', err);
       });
-      console.log(TAG, 'InboxSDK compose view handler registered.');
     }
 
     // ── Chrome → Elm ───────────────────────────────────────────────────────
-    // The message listener was registered synchronously above (before this
-    // Promise.all resolved) so background.js could reach us immediately after
-    // re-injection.  Now that Elm is ready, wire up the real handler and drain
-    // any request that arrived during initialisation.
+    // The message listener was registered synchronously above so background.js
+    // can reach us immediately after re-injection.  Now that Elm is ready,
+    // wire up the real handler and drain any request that arrived during init.
 
     handleTriggerReply = text => {
       const composeBody = findComposeBody();
