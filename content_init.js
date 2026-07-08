@@ -98,6 +98,25 @@ if (!window.gmailElmContentInitialised) {
       // Also check immediately in case a compose view is already open.
       checkForNewComposeBody();
 
+      // Try InboxSDK as a parallel signal — if it loads, its compose-view
+      // handler calls the same checkForNewComposeBody() so the seenComposeBodies
+      // WeakSet deduplicates automatically.  If InboxSDK hangs the
+      // MutationObserver above keeps everything working regardless.
+      if (typeof InboxSDK !== 'undefined') {
+        console.log(TAG, 'InboxSDK available — attempting load...');
+        InboxSDK.load(2, inboxSdkAppId).then(sdk => {
+          console.log(TAG, 'InboxSDK loaded ✓ — registering compose view handler.');
+          sdk.Compose.registerComposeViewHandler(() => {
+            console.log(TAG, 'InboxSDK: compose view handler fired.');
+            checkForNewComposeBody();
+          });
+        }).catch(err => {
+          console.warn(TAG, 'InboxSDK.load failed — MutationObserver remains active:', err);
+        });
+      } else {
+        console.log(TAG, 'InboxSDK not present — using MutationObserver only.');
+      }
+
       // ── Chrome → Elm ──────────────────────────────────────────────────────
 
       chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
