@@ -4,10 +4,12 @@
 // global `Elm` object.  All pure state-machine logic lives there; this
 // file only bridges Chrome APIs ↔ Elm ports.
 //
-// NOTE: InboxSDK is intentionally NOT used here.  InboxSDK.load() hangs on
-// current Gmail builds because InboxSDK 2.x cannot locate Gmail's internal
-// elements.  Instead we use a MutationObserver to detect Gmail compose bodies
-// directly and insert HTML via document.execCommand / DOM APIs.
+// NOTE: InboxSDK is used as a parallel, best-effort signal alongside a
+// MutationObserver that watches for Gmail's compose body directly.  InboxSDK
+// needs `pageWorld.js` declared in manifest.json's web_accessible_resources
+// to complete its page-world handshake — without it, InboxSDK.load() hangs
+// forever with no resolve/reject.  The MutationObserver never depends on
+// that handshake, so it keeps everything working even if InboxSDK stalls.
 
 const TAG = '[GmailQuoteSelected]';
 

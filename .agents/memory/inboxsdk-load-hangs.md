@@ -1,21 +1,25 @@
 ---
-name: InboxSDK load() hangs on Gmail
-description: InboxSDK.load() promise never settles (no then/catch) on current Gmail, even on latest @inboxsdk/core; MutationObserver is the reliable detection path.
+name: InboxSDK load() hangs on Gmail (Manifest V3)
+description: Root cause found — InboxSDK.load() hangs forever with no resolve/reject when pageWorld.js is missing from the extension or not declared in web_accessible_resources.
 ---
 
-In this project, `InboxSDK.load(2, appId)` is called successfully but its returned promise
-never resolves or rejects — confirmed via console logging that neither `.then()` nor
-`.catch()` fires. This was true on both v2.2.14 and v2.2.16 of `@inboxsdk/core`, so it is not
-an App ID or version-lag issue; InboxSDK's internal readiness detection appears incompatible
-with current Gmail's bootstrap sequence.
+**Root cause (confirmed):** InboxSDK's isolated-world content script injects `pageWorld.js`
+into Gmail's actual page context to complete an internal handshake (via postMessage). If
+`pageWorld.js` is not present in the extension root, or not declared in `manifest.json`'s
+`web_accessible_resources` for the target site, Gmail's page context can't load it — the
+handshake never completes, and `InboxSDK.load()`'s promise hangs forever with **no resolve,
+no reject, no error**. This is easy to misdiagnose as an App ID or Gmail-version problem
+because nothing ever fails visibly.
 
-**Why:** Verified by instrumenting every InboxSDK callback with console logs and reproducing
-in a live Gmail tab — the "attempting load..." log always appears, but no subsequent InboxSDK
-log ever does.
+**Why:** Confirmed by comparing against a second working repo (same InboxSDK version) whose
+InboxSDK loaded successfully. Diffing setups showed the working repo had `pageWorld.js`
+copied alongside `inboxsdk.js` and declared in `web_accessible_resources`; this repo only had
+`inboxsdk.js` copied and no `web_accessible_resources` entry at all.
 
-**How to apply:** Don't spend time re-diagnosing App ID / network / permissions issues if
-InboxSDK silently hangs. The reliable, always-in-place path is a `MutationObserver` watching
-for Gmail's compose body div directly, kept as a parallel signal alongside InboxSDK (both
-funnel into the same dedup logic) so the extension keeps working regardless of InboxSDK's
-state. Decision made: keep InboxSDK code as an opportunistic no-op rather than adding a
-timeout or removing it, since it causes no functional harm.
+**How to apply:** Whenever bundling `@inboxsdk/core` manually (not via npm build pipeline):
+1. Copy BOTH `inboxsdk.js` and `pageWorld.js` from `node_modules/@inboxsdk/core/` into the
+   extension root — never just `inboxsdk.js`.
+2. Declare `pageWorld.js` in `manifest.json` under `web_accessible_resources`, matching the
+   same site pattern as the content script (e.g. `https://mail.google.com/*`).
+3. If `InboxSDK.load()` hangs with zero console output after "attempting load...", check
+   these two things first before suspecting the App ID, network, or Gmail DOM changes.

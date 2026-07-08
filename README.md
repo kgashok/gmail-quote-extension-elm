@@ -100,11 +100,13 @@ Register a free App ID at [inboxsdk.com](https://www.inboxsdk.com/).
 
 ### 3. Update InboxSDK
 
-`inboxsdk.js` is a bundled copy of [`@inboxsdk/core`](https://www.npmjs.com/package/@inboxsdk/core). To update it to the latest published version:
+`inboxsdk.js` and `pageWorld.js` are bundled copies of [`@inboxsdk/core`](https://www.npmjs.com/package/@inboxsdk/core). To update both to the latest published version:
 
 ```bash
-npm install @inboxsdk/core@latest --save-dev && cp node_modules/@inboxsdk/core/inboxsdk.js inboxsdk.js
+npm install @inboxsdk/core@latest --save-dev && cp node_modules/@inboxsdk/core/inboxsdk.js inboxsdk.js && cp node_modules/@inboxsdk/core/pageWorld.js pageWorld.js
 ```
+
+`pageWorld.js` must stay in sync with `inboxsdk.js` — InboxSDK injects it into Gmail's page context to complete a handshake, and it's declared in `manifest.json`'s `web_accessible_resources` so Gmail is allowed to load it. If it's missing or out of sync, `InboxSDK.load()` hangs forever with no error.
 
 Then reload the extension in `chrome://extensions`.
 

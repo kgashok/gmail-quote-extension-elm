@@ -1,1 +1,1 @@
-- [InboxSDK load() hangs on Gmail](inboxsdk-load-hangs.md) — InboxSDK.load() never resolves/rejects even on latest version; app relies on MutationObserver fallback instead.
+- [InboxSDK load() hangs on Gmail (Manifest V3)](inboxsdk-load-hangs.md) — root cause: missing pageWorld.js / web_accessible_resources entry, not App ID or Gmail version.

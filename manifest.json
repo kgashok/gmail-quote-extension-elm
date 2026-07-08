@@ -30,5 +30,11 @@
       "matches": ["https://mail.google.com/*"],
       "js": ["inboxsdk.js", "elm-content.js", "content_init.js"]
     }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["pageWorld.js"],
+      "matches": ["https://mail.google.com/*"]
+    }
   ]
 }
