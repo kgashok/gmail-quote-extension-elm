@@ -10,7 +10,12 @@
 // because Gmail has already moved past the window InboxSDK needs.
 // We therefore start both InboxSDK.load() and chrome.storage.sync.get in parallel,
 // then Promise.all() them together before wiring up Elm and the port listeners.
+//
+// The entire file is wrapped in an IIFE so that re-injection by background.js
+// (on connection-error retry) creates a fresh scope and const declarations never
+// collide with those from a prior injection in the same isolated world.
 
+(function () {
 const TAG = '[GmailQuoteSelected]';
 
 // This line runs unconditionally — if you don't see it, content scripts aren't loading.
@@ -290,3 +295,5 @@ if (!window.gmailElmContentInitialised) {
 } else {
   console.log(TAG, 'content_init.js skipped — already initialised on this page.');
 }
+
+})();
