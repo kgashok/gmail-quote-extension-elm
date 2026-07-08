@@ -1,0 +1,1 @@
+- [InboxSDK load() hangs on Gmail](inboxsdk-load-hangs.md) — InboxSDK.load() never resolves/rejects even on latest version; app relies on MutationObserver fallback instead.
