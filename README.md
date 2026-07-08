@@ -98,7 +98,17 @@ The App ID is stored via the extension's built-in Options page — no file editi
 
 Register a free App ID at [inboxsdk.com](https://www.inboxsdk.com/).
 
-### 3. Build
+### 3. Update InboxSDK
+
+`inboxsdk.js` is a bundled copy of [`@inboxsdk/core`](https://www.npmjs.com/package/@inboxsdk/core). To update it to the latest published version:
+
+```bash
+npm install @inboxsdk/core@latest --save-dev && cp node_modules/@inboxsdk/core/inboxsdk.js inboxsdk.js
+```
+
+Then reload the extension in `chrome://extensions`.
+
+### 4. Build
 
 ```bash
 npm run build        # optimised — produces elm-background.js and elm-content.js
