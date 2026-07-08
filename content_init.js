@@ -156,52 +156,41 @@ if (!window.gmailElmContentInitialised) {
       // ── DOM helpers ───────────────────────────────────────────────────────
 
       function insertIntoCompose(body, text, s) {
-        const quoteHTML =
-          `<blockquote style="${buildQuoteCSS(s)}">${escapeHtml(text)}</blockquote>`;
-
         body.focus();
 
-        // Prefer execCommand — it respects the current cursor position.
-        try {
-          const ok = document.execCommand('insertHTML', false, quoteHTML);
-          if (ok) {
-            // execCommand leaves the cursor inside the blockquote — move it after.
-            moveCursorAfterBlockquote(body);
-            console.log(TAG, 'quote inserted via execCommand ✓');
-            return;
-          }
-        } catch (_) {}
+        // Build the blockquote as a real DOM node (not execCommand/innerHTML).
+        // execCommand triggers Gmail's own mutation callbacks that reset the
+        // cursor back inside the blockquote before we can move it.
+        const bq = document.createElement('blockquote');
+        bq.setAttribute('style', buildQuoteCSS(s));
+        bq.textContent = text; // textContent escapes automatically — no XSS risk
 
-        // Fallback: prepend to the compose body's DOM.
-        console.warn(TAG, 'execCommand failed — falling back to DOM insertion.');
-        const tmp = document.createElement('div');
-        tmp.innerHTML = quoteHTML;
-        const bq = tmp.firstChild;
-        body.insertBefore(bq, body.firstChild);
-        moveCursorAfterElement(bq);
-        console.log(TAG, 'quote inserted via DOM prepend ✓');
-      }
-
-      // Walks up from the current selection anchor to the nearest <blockquote>,
-      // then places the cursor immediately after it.
-      function moveCursorAfterBlockquote(body) {
+        // Insert at the current cursor position, or prepend if there is none.
         const sel = window.getSelection();
-        if (!sel || sel.rangeCount === 0) return;
-
-        let node = sel.getRangeAt(0).commonAncestorContainer;
-        while (node && node !== body) {
-          if (node.nodeName === 'BLOCKQUOTE') {
-            moveCursorAfterElement(node);
-            return;
-          }
-          node = node.parentNode;
+        if (sel && sel.rangeCount > 0) {
+          const range = sel.getRangeAt(0);
+          range.deleteContents();
+          range.insertNode(bq);
+        } else {
+          body.insertBefore(bq, body.firstChild);
         }
+
+        // Place cursor after the blockquote immediately …
+        placeCursorAfter(bq);
+
+        // … and again after a tick so it wins over Gmail's mutation-observer
+        // callbacks, which run as microtasks and can reset the selection.
+        setTimeout(() => placeCursorAfter(bq), 0);
+
+        console.log(TAG, 'quote inserted ✓');
       }
 
-      function moveCursorAfterElement(el) {
-        const sel = window.getSelection();
-        if (!sel) return;
+      // Places the cursor immediately after `el` in its parent.
+      function placeCursorAfter(el) {
+        if (!el.isConnected) return;
         try {
+          const sel = window.getSelection();
+          if (!sel) return;
           const range = document.createRange();
           range.setStartAfter(el);
           range.collapse(true);
