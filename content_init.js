@@ -9,6 +9,10 @@
 
 const TAG = '[GmailQuoteSelected]';
 
+// This line runs unconditionally every time the file is injected.
+// If you do not see it in the Gmail tab console, content scripts are not loading.
+console.log(TAG, 'content_init.js FILE LOADED (guard:', window.gmailElmContentInitialised, ')');
+
 // Guard against duplicate initialisation on script re-injection.
 if (!window.gmailElmContentInitialised) {
   window.gmailElmContentInitialised = true;
